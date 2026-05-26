@@ -17,7 +17,7 @@
 |------|---------|---------|
 | Entity | @Getter + @Setter | @Data, @AllArgsConstructor, @NoArgsConstructor |
 | ValueObject | @Data | - |
-| DO | @Data（审计字段内联声明，不继承基类）| extends BaseModelObject |
+| DO | @Data（审计字段内联声明，不继承基类）| extends 任何基类 |
 | Request/Command/Query | @Data（extends BaseRequest 时加 @EqualsAndHashCode(callSuper=true)）| - |
 | Facade 实现 | @RpcProvider | @Service |
 | Facade 方法 | @FacadeIntercept(loggerName = LoggerDef.BIZ_SERVICE_LOGGER) | - |

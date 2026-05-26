@@ -160,9 +160,14 @@ Phase 3: 安装 Standards
     │  复制 standards/{preset}/* → .claude/standards/
     │  包括 patterns/ 目录
     ▼
+Phase 3.5: 扫描项目约定（仅 java-ddd）
+    │  扫描项目代码检测 DO 注解、Facade 模式、MapStruct 等
+    │  生成 .claude/standards/project-conventions.md
+    ▼
 Phase 4: 创建项目目录
     │  创建 contracts/、briefs/、judgment-logs/
     │  初始化 registry.md
+    │  安装 verify 脚本和 commands
     ▼
 Phase 5: 配置 CLAUDE.md
     │  生成或追加 HelmCode 配置
