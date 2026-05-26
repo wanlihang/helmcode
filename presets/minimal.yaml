@@ -1,0 +1,35 @@
+# 最小化预设配置
+# 适用项目：仅需要核心开发流程，不需要特定技术栈标准
+
+# 核心技能
+skills:
+  - name: dev-flow
+    path: core/dev-flow/
+    description: AI 编程主工作流（clarify → implement → verify）
+  - name: clarify
+    path: core/clarify/
+    description: 需求拆解与约束定义，产出行为契约和项目简报
+
+# 命令（最小化预设不含额外命令）
+commands: []
+
+# 编码标准（最小化预设不含技术栈标准）
+standards: []
+
+# 模板
+templates:
+  path: templates/
+  files:
+    - contract-template.md  # 行为契约模板
+    - brief-template.md     # 项目简报模板
+
+# 项目结构约定
+project:
+  # 行为契约存放位置
+  contracts_dir: contracts/
+  # 项目简报存放位置
+  briefs_dir: briefs/
+  # 判断日志存放位置
+  judgment_logs_dir: .claude/judgment-logs/
+  # Feature 注册表
+  registry: .claude/contracts/registry.md

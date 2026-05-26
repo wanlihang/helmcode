@@ -1,0 +1,43 @@
+{
+  "name": "helmcode",
+  "version": "2.0.0",
+  "description": "AI coding workflow: clarify → implement → verify. You steer, AI rows.",
+  "bin": {
+    "helmcode": "./bin/helmcode.mjs"
+  },
+  "files": [
+    "bin",
+    "core",
+    "scripts",
+    "standards",
+    "templates",
+    "loader",
+    "install.mjs",
+    "install.sh"
+  ],
+  "keywords": [
+    "claude-code",
+    "claude-code-skills",
+    "ai-coding",
+    "ai-workflow",
+    "ddd",
+    "java",
+    "behavior-contract",
+    "code-generation",
+    "ai-agent",
+    "developer-tools"
+  ],
+  "license": "MIT",
+  "author": "mojue",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wanlihang/helmcode.git"
+  },
+  "homepage": "https://github.com/wanlihang/helmcode#readme",
+  "bugs": {
+    "url": "https://github.com/wanlihang/helmcode/issues"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
