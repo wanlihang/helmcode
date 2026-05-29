@@ -21,12 +21,16 @@
 		<module>app/domain</module>
 		<module>app/infrastructure</module>
 		<module>app/facade</module>
+		<module>app/test</module>
 	</modules>
 
 	<properties>
 		<java.version>{{javaVersion}}</java.version>
 		<facade.version>0.0.1-SNAPSHOT</facade.version>
 		<sofa.boot.alipay.version>{{sofaBootVersion}}</sofa.boot.alipay.version>
+		<!-- 集成测试默认跳过(对齐 mycmbillmanage):本地/CI 编译期不连真实 DDS,
+		     回归测试时本地 mvn -pl app/test test -DisSkipIntegrationTest=false 强制启用 -->
+		<isSkipIntegrationTest>true</isSkipIntegrationTest>
 		<mycm.common.version>1.0.0.20250828</mycm.common.version>
 		<mycm.component.version>1.0.0.20250828</mycm.component.version>
 		<mycm.sequence.version>1.0.0.20250828</mycm.sequence.version>
@@ -68,6 +72,11 @@
 				<groupId>{{groupId}}</groupId>
 				<artifactId>{{appName}}-facade</artifactId>
 				<version>${facade.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>{{groupId}}</groupId>
+				<artifactId>{{appName}}-test</artifactId>
+				<version>0.0.1-SNAPSHOT</version>
 			</dependency>
 			<dependency>
 				<groupId>ch.qos.logback</groupId>

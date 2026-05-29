@@ -11,6 +11,21 @@
     <artifactId>{{appName}}-web</artifactId>
     <version>0.0.1-SNAPSHOT</version>
 
+    <!--
+      web 模块依赖说明:
+      - alipay-security-core 是显式直接依赖(与 mycmdeliverhub2 / 蚂蚁参考骨架一致)。
+        该包内含 CorsFilterConfig / RedirectFilterConfig / RefererFilterConfig / FileUpdateFilterConfig
+        四个 @PropertySource("classpath:config/alipay-security-core-*.properties") 的 @Configuration 类,
+        启动时会强加载这 4 个配置文件——所以本模块必须配套提供:
+          src/main/resources/config/alipay-security-core-cors-config.properties
+          src/main/resources/config/alipay-security-core-redirect-config.properties
+          src/main/resources/config/alipay-security-core-referer-config.properties
+          src/main/resources/config/alipay-security-core-fileupdate-config.properties
+        init-java-ddd 已经把这 4 个 stub 文件随 web 模块一起生成(默认值来自蚂蚁参考骨架,
+        whiteHostList 等业务字段请按本应用真实域名调整)。
+        缺任一文件即 BeanDefinitionStoreException: FileNotFoundException [config/alipay-security-core-*.properties]。
+      - security/security-home.acl 是 BUService ACL 配置,同源于参考骨架,空仓库启动也需要。
+    -->
     <dependencies>
         <dependency>
             <groupId>com.alipay.security</groupId>

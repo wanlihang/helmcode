@@ -1,0 +1,85 @@
+// HelmCode Demo slice — safe to delete after onboarding
+package {{basePackage}}.servicetest.base;
+
+import {{basePackage}}.facade.blacklist.BlacklistFacade;
+import {{basePackage}}.facade.blacklist.command.BlacklistAddCommand;
+import {{basePackage}}.facade.blacklist.command.BlacklistBatchAddCommand;
+import {{basePackage}}.facade.blacklist.command.BlacklistRemoveCommand;
+import {{basePackage}}.facade.blacklist.request.BlacklistCheckRequest;
+import {{basePackage}}.facade.blacklist.request.BlacklistQueryRequest;
+import {{basePackage}}.facade.blacklist.vo.BlacklistVO;
+import com.alibaba.fastjson.JSON;
+import com.mycm.common.model.base.Result;
+import com.mycm.common.model.paging.Paginator;
+import org.springframework.beans.factory.annotation.Autowired;
+
+import java.util.Arrays;
+
+/**
+ * BlacklistFacade 手工调试沙箱(对齐 mycmbillmanage 的 PengPengDaWang 风格)。
+ *
+ * 命名刻意不以 Test.java 结尾,因此默认不会被 surefire 抓到执行;
+ * 也不依赖 JUnit/TestNG 注解,只在方法上挂 //@Test 占位,IDE 右键单跑即可。
+ *
+ * 跑通前提:application-dev.properties 中 zdal 已可连通,且 email_blacklist 表已就绪。
+ *
+ * 正式的端到端用例请走 src/test/java/{{basePackagePath}}/acts/test/blacklist/
+ * 下的 ACTS + TestNG 模板(见 CheckEmailActsTest)——这才是 STANDARD 主推的方式,
+ * 本类仅作为联调脚手架。
+ */
+public class BlacklistDemoSandbox extends AbstractTestBase {
+
+    @Autowired
+    private BlacklistFacade blacklistFacade;
+
+    //@Test
+    public void testCheckEmail_Success() {
+        BlacklistCheckRequest request = new BlacklistCheckRequest();
+        request.setEmail("demo-" + System.currentTimeMillis() + "@example.com");
+        Result<Boolean> result = blacklistFacade.checkEmail(request);
+        System.out.println(JSON.toJSONString(result));
+    }
+
+    //@Test
+    public void testAddBlacklist_Success() {
+        BlacklistAddCommand command = new BlacklistAddCommand();
+        command.setEmailAddress("demo-" + System.currentTimeMillis() + "@example.com");
+        command.setModifier("demo-sandbox");
+        command.setRemark("demo sandbox sample");
+        Result<Void> result = blacklistFacade.addBlacklist(command);
+        System.out.println(JSON.toJSONString(result));
+    }
+
+    //@Test
+    public void testRemoveBlacklist_Success() {
+        BlacklistRemoveCommand command = new BlacklistRemoveCommand();
+        command.setId(1L);
+        command.setModifier("demo-sandbox");
+        Result<Void> result = blacklistFacade.removeBlacklist(command);
+        System.out.println(JSON.toJSONString(result));
+    }
+
+    //@Test
+    public void testListByPage_Success() {
+        BlacklistQueryRequest request = BlacklistQueryRequest.builder()
+                .pageNum(1)
+                .pageSize(20)
+                .emailAddress("example.com")
+                .build();
+        Result<Paginator<BlacklistVO>> result = blacklistFacade.listByPage(request);
+        System.out.println(JSON.toJSONString(result));
+    }
+
+    //@Test
+    public void testBatchAdd_Success() {
+        BlacklistBatchAddCommand command = new BlacklistBatchAddCommand();
+        command.setEmailAddressList(Arrays.asList(
+                "demo-batch1-" + System.currentTimeMillis() + "@example.com",
+                "demo-batch2-" + System.currentTimeMillis() + "@example.com"
+        ));
+        command.setModifier("demo-sandbox");
+        command.setRemark("demo batch sample");
+        Result<Void> result = blacklistFacade.batchAddBlacklist(command);
+        System.out.println(JSON.toJSONString(result));
+    }
+}

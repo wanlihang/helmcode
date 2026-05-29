@@ -17,8 +17,9 @@ domain.name=${DOMAIN_NAME:default-zone}
 inner.domain=${domain.name}
 # 应用日志级别
 logging.level.{{basePackage}}=INFO
-# 日志目录,编译打包校验该字段
-logging.path=/home/admin/logs
+# 日志目录:本地 dev 默认走 ${java.io.tmpdir}/logs/{{appName}} (Mac/Linux 都可写,启动无 mkdir 噪音);
+# 生产环境(线上发布平台)会注入 LOG_PATH=/home/admin/logs 覆盖,与编译打包校验保持兼容。
+logging.path=${LOG_PATH:${java.io.tmpdir}/logs/{{appName}}}
 logging.root=${logging.path}
 logging.config=classpath:log4j2-spring.xml
 # 近端包解析 velocity 语法判断版本用
@@ -48,6 +49,26 @@ antkms_app_name={{appName}}
 # mist_tenant=
 # antkms_tenant_id=
 # secretcore_mist_email=
+
+# ---- SOFA framework mist 自动装配 (与上面 mist_tenant 不是同一个 key, 不要混淆) ----
+# sofa.mist.* 给 SOFA 框架的 MistAutoConfiguration 用 (com.alipay.sofa:mist-alipay-sofa-boot-starter),
+# 是 Ant 平台通用的"机密配置 SDK 客户端"初始化参数, 跟具体业务无关,
+# 即便 sofa.mist.enabled=false, 框架在 bean factory 阶段仍会实例化 MistSDKConfig 并
+# Assert.hasText(sofa.mist.tenant), 因此 tenant 必须有值, 否则 web 模块启动直接挂掉
+# (mistConfigService -> mistClientService -> buservice filter -> Tomcat init 整条链路雪崩)。
+# ALIPAY 是 Ant 平台默认租户, 任何新应用都可以用, 不属于敏感值, 可以入仓硬编码。
+sofa.mist.appName=secretcore
+sofa.mist.tenant=ALIPAY
+sofa.mist.secretList=
+# 新应用还没申请 mist 密钥, 先关掉 mist/buservice 运行时,
+# 申请到密钥并填 sofa.buservice.mistConfigKey 后, 把下面两行的 false 改成 true 即可启用。
+sofa.mist.enabled=false
+
+# ---- SOFA buservice ----
+sofa.buservice.antbuserviceUrl=http://antbuservice.stable.alipay.net
+# 申请 mist 密钥后填入, 参考 https://yuque.antfin.com/g/antbuservice/1.0.0/vlo20ru60umcu90v/collaborator/join
+sofa.buservice.mistConfigKey=
+sofa.buservice.enabled=false
 
 # ---- 健康检查信息脱敏 ----
 # 关闭 SofaBoot3 及以上版本健康检查的附加功能, 存在敏感信息泄漏风险

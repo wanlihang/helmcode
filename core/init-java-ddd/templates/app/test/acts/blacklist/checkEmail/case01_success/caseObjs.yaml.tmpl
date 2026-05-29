@@ -1,0 +1,40 @@
+# Section 1: Case Desc
+# 场景:邮箱不在黑名单中,checkEmail 返回 success=true 且 data=false
+查询不在黑名单中的邮箱,期望 Result.success=true,data=false
+
+---
+# Section 2: Arguments: List<Object>
+[
+  !!{{basePackage}}.facade.blacklist.request.BlacklistCheckRequest {
+    email: 'case01-not-in-blacklist@example.com'
+  }
+]
+
+---
+# Section 3: Flags: Map<String, Map<String, String>>
+# N = 跳过校验, R = 正则匹配
+{
+  com.mycm.common.model.base.Result: {
+    resultMsg: N
+  }
+}
+
+---
+# Section 4: Result: Object
+!!com.mycm.common.model.base.Result {
+  success: true,
+  resultCode: '0000',
+  data: false
+}
+
+---
+# Section 5: Message Event: List<Map<String, Object>>
+null
+
+---
+# Section 6: User-defined Params: Map<String, Object>
+{}
+
+---
+# Section 7: Virtual Mocks(Deprecated): List<VirtualMock>
+null

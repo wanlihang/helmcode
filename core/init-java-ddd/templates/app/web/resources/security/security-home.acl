@@ -1,0 +1,5 @@
+## https://yuque.antfin.com/antbuservice/1.0.0/ggna2n#Gx2TL
+/actuator/**>ALL_VISIBLE
+/example/**>ALL_VISIBLE
+/buservice/testacl>TEST_PERMISSION
+/buservice/testacl.json>TEST_PERMISSION

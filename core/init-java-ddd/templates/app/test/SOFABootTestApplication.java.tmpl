@@ -1,0 +1,38 @@
+package {{basePackage}}.servicetest.base;
+
+import com.alipay.sofa.boot.reader.VelocityXmlBeanDefinitionReader;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
+import org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration;
+import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.EnableAspectJAutoProxy;
+import org.springframework.context.annotation.ImportResource;
+
+/**
+ * 测试应用启动类,与 bootstrap 模块的 {{AppName}}Application 镜像。
+ * 调整启动注解时务必同步两边。
+ */
+@ImportResource(locations = {"classpath*:spring/*.xml", "classpath*:META-INF/spring/*.xml"},
+        reader = VelocityXmlBeanDefinitionReader.class)
+@ComponentScan(basePackages = {"{{basePackage}}", "com.mycm.common.command"})
+@SpringBootApplication(exclude = {DataSourceAutoConfiguration.class, DataSourceTransactionManagerAutoConfiguration.class,
+        HibernateJpaAutoConfiguration.class})
+@EnableAspectJAutoProxy(exposeProxy = true, proxyTargetClass = true)
+public class SOFABootTestApplication {
+    private static final Logger LOGGER = LoggerFactory.getLogger(SOFABootTestApplication.class);
+
+    public static void main(String[] args) {
+        try {
+            SpringApplication.run(SOFABootTestApplication.class, args);
+            LOGGER.info("SOFABoot Test App Start!!!");
+        } catch (Throwable e) {
+            LOGGER.error("SOFABoot Test App Start Fail!!! More logs can be found on 1) logs/sofa-runtime/common-error.log"
+                    + " 2) logs/spring/spring.log 3) logs/mvc/common-error.log 4) logs/health-check/common-error.log", e);
+            throw e;
+        }
+    }
+}

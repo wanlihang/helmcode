@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>{{groupId}}</groupId>
+        <artifactId>{{appName}}-parent</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+    <artifactId>{{appName}}-test</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+
+    <dependencies>
+        <dependency>
+            <groupId>{{groupId}}</groupId>
+            <artifactId>{{appName}}-bootstrap</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>compile</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.skyscreamer</groupId>
+                    <artifactId>jsonassert</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-starter-logging</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>com.alipay.test.acts</groupId>
+            <artifactId>alipay-sofaboot-acts-common</artifactId>
+            <version>2.0.16</version>
+            <type>pom</type>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-inline</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>2.22.2</version>
+                <configuration>
+                    <skipTests>${isSkipIntegrationTest}</skipTests>
+                    <includes>
+                        <!-- 跑 JUnit5 集成测试,以 *Test.java 结尾 -->
+                        <include>**/*Test.java</include>
+                    </includes>
+                    <testFailureIgnore>true</testFailureIgnore>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>test-testng</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <junitArtifactName>none:none</junitArtifactName>
+                            <testNGArtifactName>org.testng:testng</testNGArtifactName>
+                            <argLine>-Xmx1024m -XX:PermSize=256m -XX:MaxPermSize=512m</argLine>
+                            <suiteXmlFiles>
+                                <!-- ACTS TestNG suite, 路径与 src/main/resources/actsSuite/ 一致 -->
+                                <suiteXmlFile>src/main/resources/actsSuite/{{appName}}-testng-all.xml</suiteXmlFile>
+                            </suiteXmlFiles>
+                            <forkMode>once</forkMode>
+                            <testFailureIgnore>true</testFailureIgnore>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

@@ -1,0 +1,15 @@
+package {{basePackage}}.servicetest.base;
+
+import org.springframework.boot.test.context.SpringBootTest;
+
+/**
+ * JUnit 5 集成测试基类,继承后即可注入 Spring 容器。
+ * 注意本仓库统一使用 JUnit 5 (org.junit.jupiter.api.Test),不要混用 JUnit 4。
+ */
+@SpringBootTest(classes = SOFABootTestApplication.class)
+public abstract class AbstractTestBase {
+    static {
+        // 解决找不到系统参数 dbmode 的问题
+        System.setProperty("dbmode", "dev");
+    }
+}

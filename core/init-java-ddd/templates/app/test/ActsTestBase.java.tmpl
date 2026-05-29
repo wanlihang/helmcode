@@ -1,0 +1,43 @@
+package {{basePackage}}.servicetest.base;
+
+import com.alipay.test.acts.template.ActsTestBase;
+import org.springframework.boot.test.context.SpringBootTest;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * ACTS (Automated Continuous Testing System) 测试基类。
+ * TestNG 驱动,与 {@link AbstractTestBase}(JUnit 5)互不影响。
+ *
+ * 使用场景:
+ * - 需要 yaml 用例数据 + 自动反填 SQL 的端到端集成测试
+ * - 配套 {@code src/main/resources/actsSuite/{{appName}}-testng-all.xml} 套件
+ */
+@SpringBootTest(classes = SOFABootTestApplication.class)
+public class {{AppName}}ActsTestBase extends ActsTestBase {
+
+    static {
+        System.setProperty("test_artifacts",
+                "commons-pool-,commons-beanutils-,commons-dbcp-,guava-,ats-common-,cmmons-io-,atd-app-server-,cloning,objenesis,"
+                        + "acts-common-util-,acts-common-dto,acts-core-,itest-common-lang-");
+        System.setProperty("dbmode", "dev");
+    }
+
+    /**
+     * 预跑反填 SQL 列表。需要在用例执行前查询当前数据快照供后续断言对比时,
+     * 在此返回对应 SQL。支持 $args / $result 变量替换。
+     */
+    @Override
+    public List<String> backFillSqlList() {
+        return new ArrayList<>();
+    }
+
+    /**
+     * 全局忽略校验字段。格式:类#属性#校验flag (N=不校验, R=正则)。
+     */
+    @Override
+    public List<String> setIgnoreCheckFileds() {
+        return new ArrayList<>();
+    }
+}

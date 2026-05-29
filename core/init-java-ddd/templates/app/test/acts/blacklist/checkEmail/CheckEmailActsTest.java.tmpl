@@ -1,0 +1,54 @@
+// HelmCode Demo slice — safe to delete after onboarding
+package {{basePackage}}.acts.test.blacklist.checkEmail;
+
+import {{basePackage}}.facade.blacklist.BlacklistFacade;
+import {{basePackage}}.servicetest.base.{{AppName}}ActsTestBase;
+import com.alipay.test.acts.annotation.TestBean;
+import com.alipay.test.acts.annotation.acts.AutoFill;
+import com.alipay.test.acts.annotation.acts.PrepareCase;
+import com.alipay.test.acts.annotation.acts.RunOnly;
+import com.alipay.test.acts.model.PrepareData;
+import com.alipay.test.acts.runtime.ActsRuntimeContext;
+import org.testng.annotations.Test;
+
+/**
+ * BlacklistFacade.checkEmail 的 ACTS 集成测试样例。
+ *
+ * 严格遵循 STANDARD(<HELMCODE_HOME>/standards/java-ddd/patterns/test.md):
+ *   - 路径:src/test/java/{{basePackagePath}}/acts/test/{facadeName}/{methodName}/
+ *   - 用例数据:同名子目录 case01_success/caseObjs.yaml(7 段式)
+ *   - 命名:类名 = {MethodName}ActsTest;方法名同 facade 方法名
+ *
+ * 跑通前提:
+ *   1. zdal 配置可连通 dev DDS,email_blacklist 表已建
+ *   2. mvn -pl app/test test -DisSkipIntegrationTest=false -P test-testng
+ */
+public class CheckEmailActsTest extends {{AppName}}ActsTestBase {
+
+    @TestBean
+    protected BlacklistFacade blacklistFacade;
+
+    @Test(dataProvider = "ActsDataProvider")
+    @AutoFill(overwrite = false, sqlList = {})
+    @RunOnly(caseList = {".*"})
+    public void checkEmail(String caseId, String desc, PrepareData prepareData) {
+        runTest(caseId, prepareData);
+    }
+
+    @Override
+    public void beforeActsTest(ActsRuntimeContext actsRuntimeContext) {
+        super.beforeActsTest(actsRuntimeContext);
+        // 全局 setup:如需 mock 外部依赖在此注入
+    }
+
+    @PrepareCase(".*case01.*")
+    public void p01(ActsRuntimeContext actsRuntimeContext) {
+        // case01 专用准备:可在此写 PrepareDBData、ReflectionTestUtils mock 等
+    }
+
+    @Override
+    public void afterActsTest(ActsRuntimeContext actsRuntimeContext) {
+        super.afterActsTest(actsRuntimeContext);
+        // 全局清理:还原 mock、清理临时数据
+    }
+}
