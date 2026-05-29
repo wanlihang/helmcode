@@ -460,7 +460,7 @@ billmanage 的 `MycmBillManageApplication` / mycmdeliverhub 的 `MycmdeliverhubA
 
 - ✅ 根目录有 `pom.xml`、`CLAUDE.md`、`.gitignore`、`.helmcode-todo.md`
 - ✅ `app/{bootstrap,application,domain,infrastructure,facade}` 5 个核心模块齐(`web` 视 `--with-web`,`test` 视 `--with-test`)
-- ✅ pom.xml 数量:5 核心 + (web ? 1 : 0) + (test ? 1 : 0) + 1 根 = 默认 7 个
+- ✅ pom.xml 数量:5 核心 + (web ? 1 : 0) + (test ? 1 : 0) + 1 根 = 默认 8 个
 - ✅ 6 个 `@Configuration`(Zdal/Mybatis/Sequence/AntKms/CommonConfig/CMDConfiguration)全部存在
 - ✅ Application 入口含 `@ComponentScan({"{{basePackage}}", "com.mycm.common.command"})` + `@EnableAspectJAutoProxy` + 双 `@ImportResource`
 - ✅ `--with-demo=true` 时:19 个 demo 业务文件存在(facade 7 + application 2 + domain 5 + infrastructure 5,含 `EmailBlacklistDOMapper.xml`);`--with-web=true` 再 +1(Controller);`--with-test=true` 再 +3(沙箱 + ACTS 测试类 + caseObjs.yaml)。每个文件头有 `HelmCode Demo slice` marker

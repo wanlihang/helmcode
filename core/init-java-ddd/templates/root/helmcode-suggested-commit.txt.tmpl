@@ -1,11 +1,11 @@
 chore: init {{appName}} SOFABoot DDD skeleton via HelmCode init-java-ddd
 
-- 6 modules: bootstrap / web / application / domain / infrastructure / facade
+- 7 modules: bootstrap / web / application / domain / infrastructure / facade / test
 - SOFABoot {{sofaBootVersion}} on Java {{javaVersion}}
-- ZdalConfiguration / MybatisConfiguration / SequenceConfiguration / AntKmsBeanConfig wired
+- ZdalConfiguration / MybatisConfiguration / SequenceConfiguration / AntKmsBeanConfig / CommonConfig / CMDConfiguration wired
 - EmailBlacklist demo slice as DDD reference (delete after onboarding:
     grep -rl "HelmCode Demo slice" . | xargs rm -f
-    rm sql/V001__create_email_blacklist.sql)
+    rm sql/V001__init_email_blacklist.sql)
 - HelmCode workflow injected under .claude/
 
 Manual TODO before first run — see .helmcode-todo.md
