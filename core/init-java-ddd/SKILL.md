@@ -23,7 +23,7 @@ tags: [init, java-ddd, sofaboot, scaffold, cold-start]
 ### v1.0 (2026-05-29)
 - 首版发布。冷启动生成 SOFABoot 4.7 / Java 21 / 7 模块 DDD 骨架(6 业务 + 1 集成测试)
 - Demo 切片 EmailBlacklist(5 facade 方法)统一走 `BizTemplate.doProcess` 惯用法
-- 4 个 `@Configuration`(Zdal / Mybatis / Sequence / AntKms)真实接入,仅"应用绑定值"打 TODO
+- 6 个 `@Configuration`(Zdal / Mybatis / Sequence / AntKms / CommonConfig / CMDConfiguration)全部真实接入,仅"应用绑定值"打 TODO
 - `app/test` 模块对齐 mycmbillmanage:JUnit 5 (`AbstractTestBase`) + ACTS/TestNG (`{{AppName}}ActsTestBase`) 双支持,
   默认 `isSkipIntegrationTest=true` 不阻塞 CI
 - 同步 HelmCode 工作流(clarify / dev-flow / implement / verify / analyze)到 `.claude/`
@@ -232,7 +232,7 @@ app/facade/src/main/java/{{basePackagePath}}/facade/{facade,vo,request,command,e
 > - `pom.xml.tmpl` 中默认两个 surefire execution:默认走 junit-platform 接口扫 `**/*Test.java`,
 >   `-P test-testng` 切换 TestNG provider 跑 `actsSuite/{{appName}}-testng-all.xml`
 
-### Phase 6: 基础设施真实接入(`@Configuration` × 4 + 共享工具 × 1,无条件生成,**不受 `--with-demo` 影响**)
+### Phase 6: 基础设施真实接入(`@Configuration` × 6 + 共享工具 × 1,无条件生成,**不受 `--with-demo` 影响**)
 
 | 源 | 目标 |
 |---|---|
@@ -240,13 +240,20 @@ app/facade/src/main/java/{{basePackagePath}}/facade/{facade,vo,request,command,e
 | `templates/app/infrastructure/config/MybatisConfiguration.java.tmpl` | `app/infrastructure/src/main/java/{{basePackagePath}}/infrastructure/config/MybatisConfiguration.java` |
 | `templates/app/infrastructure/config/SequenceConfiguration.java.tmpl` | `app/infrastructure/src/main/java/{{basePackagePath}}/infrastructure/config/SequenceConfiguration.java` |
 | `templates/app/infrastructure/config/AntKmsBeanConfig.java.tmpl` | `app/infrastructure/src/main/java/{{basePackagePath}}/infrastructure/config/AntKmsBeanConfig.java` |
+| `templates/app/infrastructure/config/CommonConfig.java.tmpl` | `app/infrastructure/src/main/java/{{basePackagePath}}/infrastructure/config/CommonConfig.java` |
+| `templates/app/infrastructure/config/CMDConfiguration.java.tmpl` | `app/infrastructure/src/main/java/{{basePackagePath}}/infrastructure/config/CMDConfiguration.java` |
 | `templates/app/infrastructure/log/MycmLoggerDef.java.tmpl` | `app/infrastructure/src/main/java/{{basePackagePath}}/infrastructure/log/MycmLoggerDef.java` |
 | `templates/sql/V000__init_sequence.sql` | `sql/V000__init_sequence.sql`(infra 级,**不属于 demo**,删 demo 时保留) |
 
-> **关键**:4 个 `@Configuration` 全部生效(非占位)。仅在"应用绑定值"打 TODO:
+> **关键**:6 个 `@Configuration` 全部生效(非占位)。仅在"应用绑定值"打 TODO:
 > - `ZdalConfiguration.singleDataSource` 的 `appDsName` / `appName` / `version`
 > - `SequenceConfiguration.zdalSequence` 的 `tableName`
 > - `AntKmsBeanConfig` 依赖的 properties(`mist_tenant` / `antkms_tenant_id` / `secretcore_mist_email`)
+> - `CMDConfiguration` 注册 12 个 Bean 完成异步命令基础设施装配:
+>   `asynCmdThreadPool` → `asynCmdRepository` → `cmdExecuteTemplate` → `asynCommandExecutor` → `asynCommandService`;
+>   另含 `AsynCmdConfigDRMResource`(DRM 推送配置,appName 占位 `{{appName}}`)及
+>   `AsynCmdLoader`/`AsynCmdExecutor`/`AsynCmdSplitHandler`/`AsynCmdLoadHandler`/`AsynCmdExecuteHandler` 调度链。
+>   对齐 mycmbillmanage 的 `CMDConfiguration.java`(单库版);mycmbill 的分库分景版需用户自行扩展。
 >
 > `MycmLoggerDef` 继承 `com.mycm.common.model.constants.LoggerDef`,新增 `FACADE_SERVICE_LOGGER`
 > 常量供 `@FacadeIntercept(loggerName = ...)` 使用。Demo 切片依赖此类,即便 `--with-demo=false`
@@ -454,7 +461,7 @@ billmanage 的 `MycmBillManageApplication` / mycmdeliverhub 的 `MycmdeliverhubA
 - ✅ 根目录有 `pom.xml`、`CLAUDE.md`、`.gitignore`、`.helmcode-todo.md`
 - ✅ `app/{bootstrap,application,domain,infrastructure,facade}` 5 个核心模块齐(`web` 视 `--with-web`,`test` 视 `--with-test`)
 - ✅ pom.xml 数量:5 核心 + (web ? 1 : 0) + (test ? 1 : 0) + 1 根 = 默认 7 个
-- ✅ 4 个 `@Configuration`(Zdal/Mybatis/Sequence/AntKms)全部存在
+- ✅ 6 个 `@Configuration`(Zdal/Mybatis/Sequence/AntKms/CommonConfig/CMDConfiguration)全部存在
 - ✅ Application 入口含 `@ComponentScan({"{{basePackage}}", "com.mycm.common.command"})` + `@EnableAspectJAutoProxy` + 双 `@ImportResource`
 - ✅ `--with-demo=true` 时:19 个 demo 业务文件存在(facade 7 + application 2 + domain 5 + infrastructure 5,含 `EmailBlacklistDOMapper.xml`);`--with-web=true` 再 +1(Controller);`--with-test=true` 再 +3(沙箱 + ACTS 测试类 + caseObjs.yaml)。每个文件头有 `HelmCode Demo slice` marker
 - ✅ `--with-test=true` 时:`app/test/` 7 个基础文件齐,`SOFABootTestApplication` + `AbstractTestBase` + `{{AppName}}ActsTestBase` 编译通过
@@ -465,7 +472,7 @@ billmanage 的 `MycmBillManageApplication` / mycmdeliverhub 的 `MycmdeliverhubA
 ```bash
 mvn -pl app/bootstrap -am compile -DskipTests
 ```
-此命令应通过(前提是 DDS/mist TODO 不影响编译期——4 个 `@Configuration` 的字段值都在运行期才生效)。
+此命令应通过(前提是 DDS/mist TODO 不影响编译期——6 个 `@Configuration` 的字段值都在运行期才生效)。
 
 ---
 
@@ -539,7 +546,7 @@ mvn -pl app/bootstrap -am compile -DskipTests
       - 应用绑定值(如 DDS `version`、`mist_tenant`、`antkms_tenant_id`)每个应用独占,
         **必须留 TODO 占位符**,不能塞默认值"先让它跑起来"。
     - **历史踩坑**:本技能在 2026-05-29 短暂走过一次错路——为了让 `mycmdeliverhub` 在用户没申请 DDS 时也能启动,
-      在 5 个 `@Configuration` / `@Service` / `@RpcProvider` 上加了 `@ConditionalOnProperty(name="app.dds.enabled")`,
+      在 6 个 `@Configuration` / `@Service` / `@RpcProvider` 上加了 `@ConditionalOnProperty(name="app.dds.enabled")`,
       默认 `=false`。用户立刻指出:"这算是过度修改吗?你就算改了,是不是也没法启动?" 完全正确——
       应用没了 DDS 什么都干不了,toggle 只是把启动期错误延后到运行期。立即回滚,改为本反模式约束所有未来 case。
     - **唯一例外**(允许 toggle 的场景):*同一份代码*在不同部署形态下行为不同(如灰度/AB 实验/feature flag),

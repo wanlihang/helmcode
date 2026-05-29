@@ -1,0 +1,124 @@
+package {{basePackage}}.infrastructure.config;
+
+import com.alipay.sofa.common.thread.SofaThreadPoolTaskExecutor;
+import com.mycm.common.command.*;
+import com.mycm.common.command.mapper.AsynCmdMapper;
+import com.mycm.common.command.repository.AsynCmdRepository;
+import com.mycm.common.command.repository.AsynCmdRepositoryImpl;
+import com.mycm.common.command.schedule.*;
+import com.mycm.common.sequence.SequenceService;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.transaction.support.TransactionTemplate;
+
+@Configuration
+public class CMDConfiguration {
+
+    @Bean
+    public SofaThreadPoolTaskExecutor asynCmdThreadPool() {
+        SofaThreadPoolTaskExecutor asynCmdThreadPool = new SofaThreadPoolTaskExecutor();
+        asynCmdThreadPool.setCorePoolSize(20);
+        asynCmdThreadPool.setKeepAliveSeconds(60);
+        asynCmdThreadPool.setMaxPoolSize(300);
+        asynCmdThreadPool.setQueueCapacity(4000);
+        asynCmdThreadPool.setThreadNamePrefix("AsynCommand");
+        return asynCmdThreadPool;
+    }
+
+    @Bean
+    public AsynCmdRepository asynCmdRepository(
+            @Qualifier(value = "asynCmdMapper") AsynCmdMapper asynCmdMapper,
+            @Qualifier(value = "sequenceService") SequenceService sequenceService) {
+        AsynCmdRepositoryImpl asynCmdRepository = new AsynCmdRepositoryImpl();
+        asynCmdRepository.setAsynCmdMapper(asynCmdMapper);
+        asynCmdRepository.setSequenceService(sequenceService);
+        asynCmdRepository.setTableNamePrefix("common_");
+        return asynCmdRepository;
+    }
+
+    @Bean
+    public CmdExecuteTemplate cmdExecuteTemplate(
+            @Qualifier(value = "transactionTemplate") TransactionTemplate transactionTemplate,
+            @Qualifier(value = "asynCmdRepository") AsynCmdRepository asynCmdRepository) {
+        CmdExecuteTemplate cmdExecuteTemplate = new CmdExecuteTemplate();
+        cmdExecuteTemplate.setTransactionTemplate(transactionTemplate);
+        cmdExecuteTemplate.setAsynCmdRepository(asynCmdRepository);
+        return cmdExecuteTemplate;
+    }
+
+    @Bean
+    public AsynCmdConfigDRMResource asynCmdConfigDRMResource(
+            @Qualifier(value = "asynCmdRepository") AsynCmdRepository asynCmdRepository,
+            @Qualifier(value = "asynCommandExecutor") AsynCommandExecutor asynCommandExecutor) {
+        AsynCmdConfigDRMResource resource = new AsynCmdConfigDRMResource();
+        resource.setAppName("{{appName}}");
+        resource.setAsynCmdRepository(asynCmdRepository);
+        resource.setAsynCommandExecutor(asynCommandExecutor);
+        return resource;
+    }
+
+    @Bean
+    public AsynCommandExecutor asynCommandExecutor(
+            @Qualifier(value = "cmdExecuteTemplate") CmdExecuteTemplate cmdExecuteTemplate,
+            @Qualifier(value = "asynCmdThreadPool") SofaThreadPoolTaskExecutor asynCmdThreadPool) {
+        AsynCommandExecutor executor = new AsynCommandExecutor();
+        executor.setCmdExecuteTemplate(cmdExecuteTemplate);
+        executor.setAsynCmdThreadPool(asynCmdThreadPool);
+        return executor;
+    }
+
+    @Bean
+    public AsynCommandService asynCommandService(
+            @Qualifier(value = "asynCmdRepository") AsynCmdRepository asynCmdRepository,
+            @Qualifier(value = "asynCommandExecutor") AsynCommandExecutor asynCommandExecutor) {
+        AsynCommandServiceImpl asynCommandService = new AsynCommandServiceImpl();
+        asynCommandService.setAsynCmdRepository(asynCmdRepository);
+        asynCommandService.setAsynCommandExecutor(asynCommandExecutor);
+        return asynCommandService;
+    }
+
+    @Bean
+    public AsynCmdSplitor asynCmdSplitor() {
+        return new AsynCmdSplitor();
+    }
+
+    @Bean
+    public AsynCmdLoader asynCmdLoader(
+            @Qualifier(value = "asynCmdConfigDRMResource") AsynCmdConfigDRMResource asynCmdConfigDRMResource,
+            @Qualifier(value = "asynCmdRepository") AsynCmdRepository asynCmdRepository) {
+        AsynCmdLoader asynCmdLoader = new AsynCmdLoader();
+        asynCmdLoader.setAsynCmdConfigDRMResource(asynCmdConfigDRMResource);
+        asynCmdLoader.setAsynCmdRepository(asynCmdRepository);
+        return asynCmdLoader;
+    }
+
+    @Bean
+    public AsynCmdExecutor asynCmdExecutor(
+            @Qualifier(value = "asynCommandExecutor") AsynCommandExecutor asynCommandExecutor) {
+        AsynCmdExecutor asynCmdExecutor = new AsynCmdExecutor();
+        asynCmdExecutor.setAsynCommandExecutor(asynCommandExecutor);
+        return asynCmdExecutor;
+    }
+
+    @Bean
+    public AsynCmdSplitHandler asynCmdSplitHandler() {
+        return new AsynCmdSplitHandler();
+    }
+
+    @Bean
+    public AsynCmdLoadHandler asynCmdLoadHandler(
+            @Qualifier(value = "asynCmdLoader") AsynCmdLoader asynCmdLoader) {
+        AsynCmdLoadHandler asynCmdLoadHandler = new AsynCmdLoadHandler();
+        asynCmdLoadHandler.setAsynCmdLoader(asynCmdLoader);
+        return asynCmdLoadHandler;
+    }
+
+    @Bean
+    public AsynCmdExecuteHandler AsynCmdExecuteHandler(
+            @Qualifier(value = "asynCmdExecutor") AsynCmdExecutor asynCmdExecutor) {
+        AsynCmdExecuteHandler asynCmdExecuteHandler = new AsynCmdExecuteHandler();
+        asynCmdExecuteHandler.setAsynCmdExecutor(asynCmdExecutor);
+        return asynCmdExecuteHandler;
+    }
+}

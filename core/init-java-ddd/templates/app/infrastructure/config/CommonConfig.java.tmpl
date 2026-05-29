@@ -1,0 +1,14 @@
+package {{basePackage}}.infrastructure.config;
+
+import com.mycm.common.component.template.BizTemplate;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+public class CommonConfig {
+
+    @Bean
+    public BizTemplate bizTemplate() {
+        return new BizTemplate();
+    }
+}
