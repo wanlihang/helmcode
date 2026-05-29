@@ -31,7 +31,7 @@ function phaseHeader(n, title) {
 
 const PRESETS = {
   'java-ddd': {
-    skills: ['dev-flow', 'clarify', 'implement', 'verify', 'analyze'],
+    skills: ['dev-flow', 'clarify', 'implement', 'verify', 'analyze', 'init-java-ddd'],
     standardsDir: 'java-ddd',
   },
   minimal: {
@@ -61,19 +61,16 @@ function installSkills(projectDir, skills) {
       continue;
     }
 
-    mkdirSync(target, { recursive: true });
+    // Copy the entire skill directory (SKILL.md + references/ + templates/ + claude-md/ + any future subdirs).
+    // Some skills (e.g. init-java-ddd) ship scaffold templates that are required for the skill to function
+    // — copying only SKILL.md + references/ would leave them broken at execution time.
+    cpSync(source, target, { recursive: true });
 
-    // Copy SKILL.md
-    cpSync(join(source, 'SKILL.md'), join(target, 'SKILL.md'));
-
-    // Copy references/ if exists
-    const refsDir = join(source, 'references');
-    if (existsSync(refsDir)) {
-      cpSync(refsDir, join(target, 'references'), { recursive: true });
-      log('✓', `${skill} (+ references/)`);
-    } else {
-      log('✓', skill);
-    }
+    const extras = [];
+    if (existsSync(join(source, 'references'))) extras.push('references/');
+    if (existsSync(join(source, 'templates'))) extras.push('templates/');
+    if (existsSync(join(source, 'claude-md'))) extras.push('claude-md/');
+    log('✓', extras.length ? `${skill} (+ ${extras.join(', ')})` : skill);
   }
 }
 

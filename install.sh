@@ -90,7 +90,7 @@ if [ "$FORCE" = false ]; then
   echo "  技术栈:   $PRESET"
   echo ""
   echo "  将安装以下内容:"
-  echo "  - Skills: $(if [ "$PRESET" = "java-ddd" ]; then echo "dev-flow, clarify, implement, verify, analyze"; else echo "dev-flow, clarify"; fi)"
+  echo "  - Skills: $(if [ "$PRESET" = "java-ddd" ]; then echo "dev-flow, clarify, implement, verify, analyze, init-java-ddd"; else echo "dev-flow, clarify"; fi)"
   if [ "$PRESET" = "java-ddd" ]; then
     echo "  - Standards: standards.md, review-rules.md, test-standards.md, patterns/"
   fi
@@ -116,7 +116,7 @@ echo "📦 Phase 1: 安装 Skills 到 .claude/skills/"
 echo "─────────────────────────────────────────"
 
 if [ "$PRESET" = "java-ddd" ]; then
-  SKILLS=("dev-flow" "clarify" "implement" "verify" "analyze")
+  SKILLS=("dev-flow" "clarify" "implement" "verify" "analyze" "init-java-ddd")
 elif [ "$PRESET" = "minimal" ]; then
   SKILLS=("dev-flow" "clarify")
 else
@@ -133,18 +133,22 @@ for skill in "${SKILLS[@]}"; do
     continue
   fi
 
-  # 创建目标目录
-  mkdir -p "$TARGET"
+  # 整目录复制(SKILL.md + references/ + templates/ + claude-md/ 及未来子目录)。
+  # 部分 skill(如 init-java-ddd)依赖随包发布的脚手架模板才能在执行期工作,
+  # 只拷 SKILL.md+references/ 会导致运行时找不到模板。
+  rm -rf "$TARGET"
+  mkdir -p "$(dirname "$TARGET")"
+  cp -R "$SOURCE" "$TARGET"
 
-  # 复制 SKILL.md
-  cp "$SOURCE/SKILL.md" "$TARGET/SKILL.md"
-
-  # 复制 references/（如果存在）
-  if [ -d "$SOURCE/references" ]; then
-    cp -r "$SOURCE/references" "$TARGET/"
+  EXTRAS=""
+  [ -d "$SOURCE/references" ] && EXTRAS="$EXTRAS references/"
+  [ -d "$SOURCE/templates" ]  && EXTRAS="$EXTRAS templates/"
+  [ -d "$SOURCE/claude-md" ]  && EXTRAS="$EXTRAS claude-md/"
+  if [ -n "$EXTRAS" ]; then
+    echo "  ✓ $skill (+$EXTRAS)"
+  else
+    echo "  ✓ $skill"
   fi
-
-  echo "  ✓ $skill $(if [ -d "$SOURCE/references" ]; then echo "(+ references/)"; fi)"
 done
 
 # ===== Phase 2: 安装 Standards =====

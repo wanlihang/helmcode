@@ -63,20 +63,29 @@ The core innovation. AI actively exposes its design decisions:
 
 ## Installation
 
+> **Distribution**: HelmCode is distributed directly from GitHub — there is no npm package. All install commands below pull source from `github:wanlihang/helmcode`.
+
 ```bash
 # Global install (recommended)
-npm install -g helmcode
+npm install -g github:wanlihang/helmcode
 helmcode install --preset java-ddd
 
-# One-time use
-npx helmcode install --preset java-ddd
+# Pin a version (release tag)
+npm install -g github:wanlihang/helmcode#v2.0.3
+
+# One-time use (no global install)
+npx -y github:wanlihang/helmcode install --preset java-ddd
 
 # Project-level
-npm install --save-dev helmcode
+npm install --save-dev github:wanlihang/helmcode
 npx helmcode install
 
 # Check status
 helmcode status
+
+# Upgrade
+npm install -g github:wanlihang/helmcode    # re-pull HEAD of main
+helmcode update                             # re-sync skills/standards into project
 ```
 
 ## Usage
