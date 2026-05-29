@@ -3,3 +3,6 @@ node_modules/
 *.log
 .idea/
 *.iml
+
+# Verification / sandbox artifacts (per project policy: do not retain)
+.test-output/

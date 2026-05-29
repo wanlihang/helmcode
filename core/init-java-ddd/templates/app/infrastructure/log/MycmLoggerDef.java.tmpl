@@ -1,0 +1,17 @@
+package {{basePackage}}.infrastructure.log;
+
+import com.mycm.common.model.constants.LoggerDef;
+
+/**
+ * 应用日志名常量集合,继承 mycm-common 自带的 LoggerDef。
+ *
+ * 新增 logger 时:
+ *  1. 在 log4j2-spring.xml 中声明同名 RollingFile appender;
+ *  2. 在本类中追加 public static final String 常量;
+ *  3. 切面 / 业务代码引用本类常量,禁止散落字符串字面量。
+ */
+public class MycmLoggerDef extends LoggerDef {
+
+    /** facade 入参/出参 + 耗时日志 */
+    public static final String FACADE_SERVICE_LOGGER = "FACADE-SERVICE-LOGGER";
+}

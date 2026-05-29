@@ -42,7 +42,7 @@ function parseArgs(argv) {
 
 function showHelp() {
   console.log(`
-HelmCode — AI编程工作流: clarify → implement → verify
+HelmCode — AI编程工作流: clarify → /goal → checkpoint
 
 Usage:
   helmcode <command> [options]

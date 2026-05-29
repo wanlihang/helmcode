@@ -1,0 +1,42 @@
+// HelmCode Demo slice — safe to delete after onboarding
+package {{basePackage}}.infrastructure.blacklist.mybatis.mapper;
+
+import {{basePackage}}.infrastructure.blacklist.mybatis.model.EmailBlacklistDO;
+import com.mycm.common.component.log.annotation.DalLog;
+import com.mycm.common.model.constants.LoggerDef;
+import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
+
+import java.util.List;
+
+/**
+ * 邮箱黑名单 Mapper 接口。
+ *
+ * 全量方法标注 @DalLog,使 DAL 出入参打到 dal.log;严禁在 Repository 实现里手工 log.info DAL。
+ */
+@Mapper
+public interface EmailBlacklistDOMapper {
+
+    @DalLog(loggerName = LoggerDef.DAL_DETAIL_LOGGER)
+    EmailBlacklistDO selectByEmailAddress(@Param("emailAddress") String emailAddress);
+
+    @DalLog(loggerName = LoggerDef.DAL_DETAIL_LOGGER)
+    EmailBlacklistDO selectByPrimaryKey(@Param("id") Long id);
+
+    @DalLog(loggerName = LoggerDef.DAL_DETAIL_LOGGER)
+    List<EmailBlacklistDO> selectByPage(@Param("offset") int offset,
+                                       @Param("pageSize") int pageSize,
+                                       @Param("emailAddress") String emailAddress);
+
+    @DalLog(loggerName = LoggerDef.DAL_DETAIL_LOGGER)
+    long countByEmailAddress(@Param("emailAddress") String emailAddress);
+
+    @DalLog(loggerName = LoggerDef.DAL_DETAIL_LOGGER)
+    int insert(EmailBlacklistDO record);
+
+    @DalLog(loggerName = LoggerDef.DAL_DETAIL_LOGGER)
+    int insertBatch(@Param("records") List<EmailBlacklistDO> records);
+
+    @DalLog(loggerName = LoggerDef.DAL_DETAIL_LOGGER)
+    int logicalDelete(@Param("id") Long id, @Param("modifier") String modifier);
+}

@@ -1,25 +1,29 @@
 ---
 name: dev-flow
 description: |
-  AI 编程主工作流。3 步循环：clarify → implement → verify。
-  围绕人的判断力设计，而非文档完整性。
+  AI 编程主工作流。goal 驱动的自主循环：clarify → /goal → checkpoint。
+  人定义终点和关键航标，AI 自主划到终点。
 
   触发场景：
   - 用户说"开发新功能"、"实现需求"、"做一个xxx"
   - 用户描述了一个需求或 Feature
   - 用户提到 "dev-flow"、"开发流程"
 
-  注意：此技能负责协调 clarify、implement、verify 三个子技能的执行顺序和上下文传递。
-version: 1.1
+  注意：此技能利用 Claude Code 的 /goal 机制驱动自主执行闭环，
+  Haiku 评估器作为独立第三方验证完成条件，替代传统的 self-check。
+version: 3.0
 author: HelmCode
-tags: [workflow, dev-flow, AI编程]
+tags: [workflow, dev-flow, goal, AI编程]
 ---
 
 # dev-flow: AI 编程主工作流
 
 ## 核心理念
 
-人的判断力是最稀缺资源。系统围绕"人审什么"设计，不是"文档产什么"。
+人定义终点，AI 自主到达。具体来说：
+- 人定义：行为契约（终点）+ 验收条件（什么叫做到了）
+- AI 自主执行：通过 `/goal` 驱动循环，直到验收条件全部满足
+- 人只审查：goal achieved 后，审查判断日志中的关键决策
 
 ## 上下文隔离约定
 
@@ -31,14 +35,12 @@ tags: [workflow, dev-flow, AI编程]
 | briefs/ | ✅ 写入 | ❌ 禁止读取 | ❌ 禁止读取 | ✅ 阅读 |
 | judgment-logs/ | ❌ | ✅ 写入 | ✅ 读取/更新 | ✅ 审查 |
 
-**关键约束**：如果项目简报中有影响代码生成的信息（如性能指标、兼容性要求），必须在行为契约中体现，而非仅在简报中。
-
 ## 流程概览
 
 ```
-Step 1: clarify  →  行为契约 + 项目简报
-Step 2: implement →  代码 + 判断日志
-Step 3: verify   →  验证结果 + 判断审查
+Phase 1: clarify  →  行为契约（人审批：draft → approved）
+Phase 2: /goal    →  AI 自主循环（implement → verify → fix → verify → ...）
+Phase 3: checkpoint → 人审查判断日志（goal achieved 后）
 ```
 
 ## 执行逻辑
@@ -47,7 +49,7 @@ Step 3: verify   →  验证结果 + 判断审查
 
 1. 检测当前环境：
    - 是否存在 `.claude/` 目录
-   - 是否存在 `.claude/contracts/` 目录（行为契约存放位置）
+   - 是否存在 `.claude/contracts/` 目录
    - 是否有已存在的行为契约（可恢复）
    - 识别技术栈（从 CLAUDE.md 或项目结构推断）
 
@@ -56,7 +58,7 @@ Step 3: verify   →  验证结果 + 判断审查
    - **1→N**：基于现有行为契约扩展
    - **修复**：基于 bug 描述定位和修复
 
-### Step 1: clarify（理解问题，定义约束）
+### Phase 1: clarify（理解问题，定义约束）
 
 调用 `/clarify`：
 
@@ -68,74 +70,91 @@ Step 3: verify   →  验证结果 + 判断审查
 - 状态机转换是否完整？
 - 业务规则是否精确？
 - API 边界是否清晰？
-- 兼容性约束是否充分？
+- 验收条件是否可程序验证？
 
 **状态转换（draft → approved）**：
 - clarify 产出行为契约（状态: draft）
 - 人审查行为契约，确认或修改
 - 人确认后，将行为契约元信息中状态改为 `approved`
 - 更新 registry.md 中对应 Feature 的状态为 `approved`
-- **只有 approved 状态的行为契约才能进入 implement**
 
 **输出**：`.claude/contracts/{F-ID}-{short-name}.md`（状态: approved 的行为契约）
 
-### Step 2: implement（自动实现循环）
+### Phase 2: /goal（自主执行闭环）
 
-调用 `/implement`：
+**设置 goal 条件**：
 
-- AI 读取：行为契约 + standards + 参考代码
-- 按 domain 逐个生成（控制上下文窗口）
-- 每个域：生成代码 → 编译 → 测试 → 修复（最多 3 轮）
-- 产出：代码 + 判断日志
+按照 `references/goal-condition-builder.md`，从行为契约的验收条件推导 `/goal` 条件：
 
-**暂停条件**（人需要介入）：
-- 连续 3 次编译/测试失败
-- AI 遇到不确定的设计决策（标记 JD-xxx）
-- 需要新增外部依赖
+```
+/goal {F-ID} 编译零错误，{测试命令} 全部通过，
+verify-field-sync 全部 ✅，verify-arch-rules 全部 ✅，
+完成后展示验收条件逐条检查结果
+```
 
-**人**：不被每一步打断，仅在暂停时介入
+**goal 循环内 AI 自主执行**：
 
-**输出**：`.claude/judgment-logs/{F-ID}-{short-name}.md`（判断日志）
+每个 turn 内，AI 执行以下动作：
 
-### Step 3: verify（验证与判断审查）
+1. **读取上下文**：行为契约 + standards + patterns + 参考代码
+2. **生成代码**：按 standards 和 patterns 生成，产出判断日志
+3. **运行验证**：
+   - 编译检查（`mvn compile` / `npm run build`）
+   - 测试（`mvn test` / `npm test`）
+   - 字段同步脚本（`node verify-field-sync.mjs`）
+   - 架构合规脚本（`node verify-arch-rules.mjs`）
+4. **如果验证失败**：分析错误，修复代码，回到步骤 2
+5. **如果验证通过**：产出验收条件逐条检查结果
 
-调用 `/verify`：
+**Haiku 评估器判断**：
+- 看到 "BUILD SUCCESS" + "Failures: 0" + 脚本全部 ✅ + 验收条件检查结果 → goal achieved
+- 看不到这些信号 → 继续下一个 turn
 
-- AI 自动验证：编译 + 测试 + 调用 `/analyze`（架构合规检查）
-- AI 产出：变更摘要 + 判断日志
-- 人审查：逐个审查判断日志中的决策
-- 确认后：git commit
+**安全阀**：
+- 8 consecutive block 后自动停止，交还控制权给人
+- 人可以随时 Escape 中断，提供指导后继续
 
-**输出**：代码已提交，行为契约状态更新为 done
+**输出**：
+- 生成的代码文件
+- `.claude/judgment-logs/{F-ID}-{short-name}.md`（判断日志）
+- 更新 `.claude/contracts/registry.md`（状态: goal-running）
+
+### Phase 3: checkpoint（判断审查）
+
+goal achieved 后，调用 `/checkpoint`：
+
+- 展示判断日志中的已做判断和需要确认的 ⚠️ 项
+- 人逐个审查 ⚠️ 项，做出选择
+- 如果 ⚠️ 项需要代码修改 → 设置新的 `/goal` 继续循环
+- 如果 ⚠️ 项全部解决 → git commit，行为契约状态 → done
 
 ## 参数
 
 | 参数 | 说明 | 默认值 |
 |------|------|--------|
 | --feature | Feature ID (如 F001-channel-recon) | 自动生成 |
-| --step | 从指定步骤开始 (clarify/implement/verify) | 从 clarify 开始 |
-| --domain | 指定领域 | 从行为契约推断 |
+| --phase | 从指定阶段开始 (clarify/goal/checkpoint) | 从 clarify 开始 |
 | --skip-clarify | 跳过 clarify，使用现有行为契约 | false |
+| --auto | 同时启用 auto-approve 模式（无工具权限提示） | false |
 
 ## 上下文管理
 
-| 步骤 | 加载内容 | 估算大小 |
+| 阶段 | 加载内容 | 估算大小 |
 |------|---------|---------|
 | clarify | 契约模板 + 简报模板 + 澄清维度 + standards.md | ~8-10KB |
 | clarify (技术栈感知) | + review-rules.md | +5KB |
-| implement | 行为契约 + standards.md + patterns(按需) + 判断日志规范 | 15-40KB |
-| implement (参考代码) | 同 domain 已有代码 (subagent 读取摘要) | 变动 |
-| verify | 行为契约 + 判断日志 + test-standards.md | ~5-10KB |
-| verify (→analyze) | review-rules.md + 行为契约(行为契约合规) | ~5-10KB |
+| goal 循环 | 行为契约 + standards.md + patterns(按需) + 判断日志规范 | 15-40KB |
+| goal 循环 (参考代码) | 同 domain 已有代码 (subagent 读取摘要) | 变动 |
+| checkpoint | 判断日志 | 1-3KB |
 
 ## 状态持久化
 
 行为契约的元信息记录 Feature 状态：
 
 ```
-draft → approved → implementing → done
-                ↓               ↓
-              abandoned       blocked
+draft → approved → goal-running → done
+                ↓                  ↓
+              abandoned          blocked
 ```
 
 ### 状态转换守卫
@@ -143,18 +162,18 @@ draft → approved → implementing → done
 | 当前状态 | 目标状态 | 守卫条件 | 触发 |
 |---------|---------|---------|------|
 | (无) | draft | 无 | clarify 生成行为契约 |
-| draft | approved | 行为契约必须包含：问题定义 + 至少1条BR + 验收条件 | 人审查确认 |
+| draft | approved | 验收条件全部可程序验证 | 人审查确认 |
 | draft | abandoned | 无 | 人决定放弃 |
-| approved | implementing | 行为契约已 approved + 代码目录可写 | implement 开始 |
-| implementing | done | 编译通过 + 测试通过 + 判断日志中无未确认的 ⚠️ 项 | verify 通过 |
-| implementing | blocked | 连续3轮编译/测试失败 或 无法解决的不确定判断 | implement 暂停 |
-| blocked | implementing | 人提供了指导或确认了未决判断 | 人介入后恢复 |
+| approved | goal-running | 行为契约已 approved | 设置 /goal |
+| goal-running | done | goal achieved + 判断日志 ⚠️ 全部处理 | checkpoint 完成 |
+| goal-running | blocked | 8-consecutive-block 安全阀触发 | goal 中断 |
+| blocked | goal-running | 人提供了指导 | 人介入后恢复 |
 | blocked | abandoned | 无 | 人决定放弃 |
 
 ### 数据流
 
 ```
-clarify 产出:
+Phase 1: clarify 产出:
   ├── .claude/contracts/{F-ID}-{short-name}.md  (行为契约，状态: draft)
   ├── .claude/briefs/{F-ID}-{short-name}.md     (项目简报，不参与代码生成)
   └── .claude/contracts/registry.md              (更新 Feature 状态为 draft)
@@ -162,21 +181,13 @@ clarify 产出:
 人审查后:
   └── .claude/contracts/{F-ID}-{short-name}.md  (状态: draft → approved)
 
-implement 读取:
-  └── .claude/contracts/{F-ID}-{short-name}.md  (必须是 approved 状态)
-
-implement 产出:
+Phase 2: /goal 循环内产出:
   ├── 生成的代码文件
   ├── .claude/judgment-logs/{F-ID}-{short-name}.md  (判断日志)
-  └── .claude/contracts/registry.md                  (更新 Feature 状态为 implementing)
+  └── .claude/contracts/registry.md                  (更新 Feature 状态为 goal-running)
 
-verify 读取:
-  ├── .claude/contracts/{F-ID}-{short-name}.md  (验收条件)
-  └── .claude/judgment-logs/{F-ID}-{short-name}.md  (判断日志审查)
-
-verify 产出:
-  ├── 验证报告（会话中展示）
-  ├── .claude/contracts/registry.md            (更新 Feature 状态为 done 或保持 implementing)
+Phase 3: checkpoint 产出:
+  ├── .claude/contracts/registry.md            (更新 Feature 状态为 done 或保持 goal-running)
   └── 判断日志确认状态更新
 ```
 
@@ -190,5 +201,5 @@ verify 产出:
 | Feature ID | 名称 | 状态 | 行为契约 | 判断日志 | 创建时间 | 更新时间 |
 |------------|------|------|---------|---------|---------|---------|
 | F001-recon-task | 对账任务管理 | done | contracts/F001-recon-task.md | judgment-logs/F001-recon-task.md | 2026-05-14 | 2026-05-14 |
-| F002-daily-report | 日报生成 | implementing | contracts/F002-daily-report.md | - | 2026-05-14 | 2026-05-14 |
+| F002-daily-report | 日报生成 | goal-running | contracts/F002-daily-report.md | - | 2026-05-14 | 2026-05-14 |
 ```

@@ -1,0 +1,54 @@
+# ====================================================================
+# {{appName}} 通用配置 — 所有环境共享
+# 环境差异化值放在 application-{env}.properties; 本文件不放 env-specific 值
+# ====================================================================
+
+# ---- SOFABoot 基础 ----
+# 必填字段,编译打包强制指定此工程类型为 SOFABoot
+sofa.version=SOFABoot
+# 应用名称
+spring.application.name={{appName}}
+app_name=${spring.application.name}
+# 服务器端口
+server.port=8888
+management.server.port=9500
+# 服务器 zone 信息(billmanage 用 @domainname@ + Maven 资源过滤注入,新工程默认走环境变量,避免引入构建期过滤)
+domain.name=${DOMAIN_NAME:default-zone}
+inner.domain=${domain.name}
+# 应用日志级别
+logging.level.{{basePackage}}=INFO
+# 日志目录,编译打包校验该字段
+logging.path=/home/admin/logs
+logging.root=${logging.path}
+logging.config=classpath:log4j2-spring.xml
+# 近端包解析 velocity 语法判断版本用
+sofa_runtime_spring_major_version=4
+# 忽略未解析的占位符
+sofa.boot.ignore.unresolvable.placeholders=true
+# 网商应用开启 Fast ClassLoader 能力, 非网商应用通过 hook.sh 中的 SOFABOOT_JAR_LAUNCHER 开启
+use_indexJar_launcher=true
+
+# ---- rpc 配置 ----
+# 开启 sofa-rpc 服务引用 vip-url 配置合法性校验能力
+sofa.boot.rpc.enableVipUrlCheck=true
+# 开启 RPC 序列化反序列化能力
+com.alipay.sofa.rpc.codec.json.enable=true
+sofa.rpc.codec.jackson.deserialize.feature.disable.list=FAIL_ON_UNKNOWN_PROPERTIES
+
+# ---- drm 配置 ----
+# 开启 DRM 资源类的自动注册能力
+sofa.boot.ddcs.enableAutoRegister=true
+
+# ---- mist / antkms (机密配置) ----
+# 应用部署单元名称, 5 个环境共享
+mist_app_name={{appName}}
+# antkms 应用名称
+antkms_app_name={{appName}}
+# TODO[manual]: 申请并填入真实 mist 租户与 antkms 租户 id, 5 个 application-{env}.properties 都需要
+# mist_tenant=
+# antkms_tenant_id=
+# secretcore_mist_email=
+
+# ---- 健康检查信息脱敏 ----
+# 关闭 SofaBoot3 及以上版本健康检查的附加功能, 存在敏感信息泄漏风险
+management.endpoints.web.exposure.exclude=env,beans,components,rpc,drm,msgbroker,zdal,configprops,conditions,loggers,mappings,threaddump,prometheus

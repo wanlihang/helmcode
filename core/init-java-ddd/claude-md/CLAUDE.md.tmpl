@@ -1,0 +1,61 @@
+# {{AppName}} - 项目宪法
+
+> 本文件由 HelmCode `/init-java-ddd` 技能生成。它是当前仓库 AI 助手必须遵守的最高约束。新增/重构标准时,请优先回写到本文件;`commands/` 与 `core/*/SKILL.md` 不应覆盖此处的规则。
+
+## 1. 工程身份
+
+- 应用名:**{{appName}}**(parent artifactId = `{{appName}}-parent`)
+- 顶层包:`{{basePackage}}`
+- 技术栈:SOFABoot {{sofaBootVersion}} / Java {{javaVersion}} / Maven 3.6+
+- 6 模块布局(`app/`):`bootstrap`、`web`、`application`、`domain`、`infrastructure`、`facade`
+
+## 2. 强制规则(违反 = 红线)
+
+1. **模块依赖单向**:bootstrap → web → application → {domain, facade, infrastructure};infrastructure → domain;domain 不依赖其它内部模块。
+2. **错误码统一走 `ErrorCodeEnum` + `MycmBizException`**。Domain/Application 层校验失败抛 `throw new MycmBizException(ErrorCodeEnum.ILLEGAL_ARGUMENT, "邮箱已存在")`;由 `BizTemplate.doProcess` 在 facade 层统一捕获并转 `Result.fail(errorCode, msg)`。**严禁**直接调用 `Result.fail("PARAM_INVALID", ...)` 这类硬编码字符串错误码 —— `com.mycm.common.model.base.Result` 没有 `Result.fail(String, ...)` 这个静态方法,写了就编译不过。
+3. **对象转换一律走 MapStruct**。`org.springframework.beans.BeanUtils.copyProperties` 在本仓库视为反模式,PR 自动拒绝。
+4. **配置 key 不允许硬编码租户敏感值**:`mist_tenant`、`antkms_tenant_id`、`secretcore_mist_*`、`sofa.boot.dds.version` 等只能由运维注入,模板里只允许出现 `TODO:` 占位。
+5. **不允许 `spring.main.allow-bean-definition-overriding=true`**。出现 Bean 重名,先排查冲突,不要靠覆盖绕过。
+6. **`@author` / `@version` Javadoc 不必写**。提交人通过 git blame 已可追溯。
+7. **Facade 不 try/catch**。Facade 方法签名 `Result<T> xxx(@Valid XxxRequest req)`,方法体只调 `bizTemplate.doProcess(req, () -> 业务返回值)`。异常由 BizTemplate 内部统一捕获 → `buildExceptionResult(e)` → `Result.fail(errorCode, msg)`;日志由 `@FacadeIntercept` 兜底。Facade 里再写 `try/catch`、`log.warn`、`log.error` 都是反模式。
+8. **Repository 抛系统异常时必须包装为 `MycmSysException`**,业务校验失败抛 `MycmBizException`,二者不可混淆。
+9. **Mapper 接口方法必须标注 `@DalLog(loggerName = LoggerDef.DAL_DETAIL_LOGGER)`**,DAL 日志统一打到 `dal.log`。
+10. **Facade 实现方法必须标注 `@FacadeIntercept(loggerName = MycmLoggerDef.FACADE_SERVICE_LOGGER)`**,入参/出参/耗时统一进入 `facade-service.log`。
+
+## 3. 包结构约定
+
+详见 `.claude/references/package-structure.md`。关键约束:
+
+- `facade` 模块只放接口 + Request/Command/VO,不依赖业务模块。允许的最小依赖:`mycm-common`、`validation-api`、`lombok`、`spring-web`(为了 `@RequestParam` 等通用注解,无 IoC 启动);
+- `domain` 模块**业务代码**禁止 `@Autowired`、`@Component`、`@Mapper`、`@Repository` 等 Spring/SOFA/SQL 注解,业务对象保持 POJO + 接口;模块 pom 可声明 `spring-boot-starter-web` / `runtime-alipay-sofa-boot-starter` 作为传递依赖(沿用 billmanage 现状,便于在 domain 编写少量集成测试),**但实现期仍需保持 domain 业务对象的纯净**;
+- `infrastructure.mybatis.mapper` 包路径必须落在 `{{basePackage}}.infrastructure.*` 下,与 `MybatisConfiguration` 的 `@MapperScan basePackages = {"{{basePackage}}.infrastructure", "com.mycm.common.command.mapper"}` + `annotationClass = Mapper.class` 一致;
+- `application` 模块的 `FacadeImpl` 必须放在 `{{basePackage}}.application.<bounded-context>` 下,不能放到 `web` 或 `domain` 模块;`xxxVoConvert` 命名(MapStruct 接口)用小驼峰 `Vo`,不要写成 `VO`。
+
+## 4. SOFA Starter 索引
+
+详见 `.claude/references/sofa-starter-index.md`。常见错误:
+
+- 漏掉 `runtime-alipay-sofa-boot-starter`(SOFA RPC 等扩展依赖它);
+- 在 `web` 模块加 `mist-alipay-sofa-boot-starter`(应在 `infrastructure`)。
+
+## 5. 反模式速查
+
+详见 `.claude/references/antipatterns.md`。提交前请对照清单自查。
+
+## 6. 删除 Demo 切片
+
+EmailBlacklist 切片为入门样例,文件头都带:
+
+```
+// HelmCode Demo slice — safe to delete after onboarding
+```
+
+确认上手后可整体删除:
+
+```bash
+git ls-files | grep "HelmCode Demo slice" -l | xargs git rm
+```
+
+----
+
+> 任何对本宪法的修改,必须在 PR description 中显式列出"宪法 diff",并由至少一名 Reviewer 显式 LGTM。

@@ -1,0 +1,29 @@
+// HelmCode Demo slice — safe to delete after onboarding
+package {{basePackage}}.domain.blacklist.query;
+
+import lombok.Getter;
+import lombok.Setter;
+
+/**
+ * 邮箱黑名单查询对象。
+ */
+@Getter
+@Setter
+public class EmailBlacklistQuery {
+
+    /** 邮箱地址(模糊匹配) */
+    private String emailAddress;
+
+    /** 页码,从 1 开始 */
+    private Integer pageNum;
+
+    /** 每页条数 */
+    private Integer pageSize;
+
+    public int getOffset() {
+        if (pageNum == null || pageSize == null) {
+            return 0;
+        }
+        return (pageNum - 1) * pageSize;
+    }
+}

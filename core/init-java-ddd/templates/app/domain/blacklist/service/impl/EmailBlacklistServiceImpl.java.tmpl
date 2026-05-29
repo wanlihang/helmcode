@@ -1,0 +1,119 @@
+// HelmCode Demo slice — safe to delete after onboarding
+package {{basePackage}}.domain.blacklist.service.impl;
+
+import {{basePackage}}.domain.blacklist.model.EmailBlacklist;
+import {{basePackage}}.domain.blacklist.query.EmailBlacklistQuery;
+import {{basePackage}}.domain.blacklist.repository.EmailBlacklistRepository;
+import {{basePackage}}.domain.blacklist.service.EmailBlacklistService;
+import com.mycm.common.model.exception.ErrorCodeEnum;
+import com.mycm.common.model.exception.MycmBizException;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+/**
+ * 邮箱黑名单领域服务实现。
+ *
+ * 职责:
+ *  1. 黑名单检查 / 分页查询 / 添加 / 移除(逻辑删除);
+ *  2. 业务规则集中实现(归一化、幂等、格式校验);
+ *  3. 异常一律抛 MycmBizException + ErrorCodeEnum,不抛裸 Exception。
+ */
+@Service
+public class EmailBlacklistServiceImpl implements EmailBlacklistService {
+
+    @Autowired
+    private EmailBlacklistRepository emailBlacklistRepository;
+
+    @Override
+    public boolean isBlacklisted(String email) {
+        if (email == null || email.trim().isEmpty()) {
+            return false;
+        }
+        return emailBlacklistRepository.isBlacklisted(email.trim().toLowerCase());
+    }
+
+    @Override
+    public EmailBlacklist getById(Long id) {
+        if (id == null || id <= 0) {
+            throw new MycmBizException(ErrorCodeEnum.ILLEGAL_ARGUMENT, "主键 ID 不能为空");
+        }
+        EmailBlacklist blacklist = emailBlacklistRepository.findById(id);
+        if (blacklist == null) {
+            throw new MycmBizException(ErrorCodeEnum.BIZ_ERROR, "黑名单记录不存在");
+        }
+        return blacklist;
+    }
+
+    @Override
+    public List<EmailBlacklist> listByPage(int pageNum, int pageSize, String emailAddress) {
+        if (pageNum <= 0) {
+            pageNum = 1;
+        }
+        if (pageSize <= 0 || pageSize > 500) {
+            pageSize = 20;
+        }
+        EmailBlacklistQuery query = new EmailBlacklistQuery();
+        query.setPageNum(pageNum);
+        query.setPageSize(pageSize);
+        query.setEmailAddress(emailAddress);
+        return emailBlacklistRepository.findByQuery(query);
+    }
+
+    @Override
+    public long countByCondition(String emailAddress) {
+        EmailBlacklistQuery query = new EmailBlacklistQuery();
+        query.setEmailAddress(emailAddress);
+        return emailBlacklistRepository.countByQuery(query);
+    }
+
+    @Override
+    public void save(EmailBlacklist blacklist) {
+        if (blacklist == null) {
+            throw new MycmBizException(ErrorCodeEnum.ILLEGAL_ARGUMENT, "黑名单对象不能为空");
+        }
+        if (blacklist.getEmailAddress() == null || blacklist.getEmailAddress().trim().isEmpty()) {
+            throw new MycmBizException(ErrorCodeEnum.ILLEGAL_ARGUMENT, "邮箱地址不能为空");
+        }
+        if (blacklist.getModifier() == null || blacklist.getModifier().trim().isEmpty()) {
+            throw new MycmBizException(ErrorCodeEnum.ILLEGAL_ARGUMENT, "操作人不能为空");
+        }
+
+        String normalizedEmail = blacklist.getEmailAddress().trim().toLowerCase();
+        if (!normalizedEmail.contains("@")) {
+            throw new MycmBizException(ErrorCodeEnum.ILLEGAL_ARGUMENT, "邮箱地址格式不正确");
+        }
+
+        // 幂等:已存在则直接返回
+        EmailBlacklist existing = emailBlacklistRepository.findByEmailAddress(normalizedEmail);
+        if (existing != null) {
+            return;
+        }
+
+        blacklist.setEmailAddress(normalizedEmail);
+        emailBlacklistRepository.save(blacklist);
+    }
+
+    @Override
+    public void remove(Long id, String operator) {
+        if (id == null || id <= 0) {
+            throw new MycmBizException(ErrorCodeEnum.ILLEGAL_ARGUMENT, "主键 ID 不能为空");
+        }
+        EmailBlacklist blacklist = emailBlacklistRepository.findById(id);
+        if (blacklist == null) {
+            throw new MycmBizException(ErrorCodeEnum.BIZ_ERROR, "黑名单记录不存在");
+        }
+        int rows = emailBlacklistRepository.remove(id, operator);
+        if (rows <= 0) {
+            throw new MycmBizException(ErrorCodeEnum.BIZ_ERROR, "删除黑名单记录失败");
+        }
+    }
+
+    @Override
+    public void batchSave(List<EmailBlacklist> blacklists) {
+        for (EmailBlacklist blacklist : blacklists) {
+            save(blacklist);
+        }
+    }
+}

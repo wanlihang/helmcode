@@ -1,0 +1,390 @@
+---
+name: init-java-ddd
+description: |
+  Java DDD 应用冷启动生成器。把一个近乎空的 git 仓库（LEGAL.md + README.md）
+  初始化为可直接 `mvn compile` 通过的 SOFABoot 4.7 / Java 21 / 6 模块 DDD 骨架,
+  含 EmailBlacklist Demo 垂直切片 + 真实 zdal/mist 接入 + HelmCode 工作流。
+
+  触发场景:
+  - 用户说"初始化 java-ddd 应用"、"在这个空仓库起一个 SOFABoot DDD 骨架"
+  - 当前目录是新建的 git 仓库,只有 LEGAL.md / README.md / .git/
+  - 在已安装 HelmCode 的仓库中,通过对话调用本 skill(本 skill 由 Claude 主动加载执行,不通过 `helmcode` CLI 入口)
+
+  核心价值:把 Linke SOFA 脚手架规范 + mycmbillmanage DDD 沉淀冻结成可复现配方,
+  AI 在初始化后的工程上 coding 不需再做架构决策。
+version: 1.0
+author: HelmCode
+tags: [init, java-ddd, sofaboot, scaffold, cold-start]
+---
+
+## Changelog
+
+### v1.0 (2026-05-29)
+- 首版发布。冷启动生成 SOFABoot 4.7 / Java 21 / 6 模块 DDD 骨架,7/7 模块编译通过
+- Demo 切片 EmailBlacklist(5 facade 方法)统一走 `BizTemplate.doProcess` 惯用法
+- 4 个 `@Configuration`(Zdal / Mybatis / Sequence / AntKms)真实接入,仅"应用绑定值"打 TODO
+- 同步 HelmCode 工作流(clarify / dev-flow / implement / verify / analyze)到 `.claude/`
+
+# init-java-ddd: Java DDD 应用冷启动生成器
+
+## 核心理念
+
+**冷启动,不是后处理。** 输入是接近空的 git 仓库,输出是开箱即编译的完整 SOFABoot DDD 骨架。
+
+**Demo 是参考样板,可整体删除。** EmailBlacklist 切片让 AI 后续 coding 时有真实的层间调用范例可参考,
+而不是面对空目录瞎猜。每个 Demo 文件头部都有 `// HelmCode Demo slice — safe to delete after onboarding` 标记。
+
+**约定大于配置。** Application 入口的注解、5 套 profile 切分、Repository 倒置、MapStruct 转换、
+`Result<T>` 返回、`ErrorCodeEnum` 错误码——全部固化为模板,不让用户/AI 重新决策。
+
+---
+
+## 上下文加载
+
+| 内容 | 路径 | 加载方式 | 估算大小 |
+|------|------|---------|---------|
+| 本 SKILL.md | `core/init-java-ddd/SKILL.md` | 主会话 | 12KB |
+| 模板根目录 | `core/init-java-ddd/templates/` | 按需 Read | 单个模板 1-4KB |
+| CLAUDE.md 模板 | `core/init-java-ddd/claude-md/CLAUDE.md.tmpl` | Phase 8 加载 | 4KB |
+| 反模式清单 | `core/init-java-ddd/references/antipatterns.md` | 仅写 CLAUDE 时引用 | 3KB |
+| Demo 业务参考 | `core/init-java-ddd/templates/demo-slice/` | Phase 7 按需 | 18 文件 |
+
+**路径约定**:
+- `templates/` 开头 → 相对**本 skill 目录**(随 skill 一起安装,执行时按 `<HELMCODE_HOME>/core/init-java-ddd/templates/` 解析)
+- 写入目标 → **当前工作目录**(用户执行命令的位置)
+
+---
+
+## 入参
+
+| 参数 | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `--app-name` | ✅ | — | 应用名(kebab/lowercase),例:`mycmdeliverhub`。若未传,先检查 cwd 名称是否符合 kebab-case,否则交互式追问 |
+| `--base-package` | ✅ | — | 根包名,例:`com.mycm.deliverhub`。若未传,从 `--app-name` 推断为 `com.mycm.{appName去横线}` 并向用户确认 |
+| `--group-id` | ❌ | 取 `--base-package` 的前两段,例:`com.mycm` | Maven groupId |
+| `--java-version` | ❌ | `21` | 全部 6 模块统一 21,**不区分 facade**(沿用 billmanage 现状) |
+| `--sofaboot-version` | ❌ | `4.7.0` | 父 pom 继承的 `sofaboot-alipay-dependencies` 版本 |
+| `--with-demo` | ❌ | `true` | 是否生成 EmailBlacklist Demo 切片 |
+| `--with-workflow` | ❌ | `true` | 是否同步注入 HelmCode `.claude/` + `CLAUDE.md` + `memory/` |
+| `--with-web` | ❌ | `true` | 是否生成 `app/web` 模块;关掉则做纯 RPC 应用 |
+| `--force` | ❌ | `false` | 跳过 pre-flight 中的"工作区干净"检查 |
+
+---
+
+## 前置条件
+
+1. 当前目录是 git 仓库(`git rev-parse --is-inside-work-tree` 成功)
+2. 工作区干净(`git status --porcelain` 输出为空) —— `--force` 可跳过
+3. **未初始化过**:根目录无 `pom.xml`、无 `app/` 目录、无 `.claude/init-java-ddd.lock`
+4. 用户当前在工程根目录(`.git/` 与 cwd 同级)
+
+任一不满足:打印明确错误 + 修复建议,然后退出,不做任何写入。
+
+---
+
+## 执行逻辑
+
+### Phase 0: 参数解析与 pre-flight
+
+1. 解析所有入参,推断默认值
+2. 衍生变量:
+   - `{{AppName}}` = `appName` 首字母大写(其余保留原样,处理含横线时拆词大驼峰,如 `mycm-deliver-hub` → `MycmDeliverHub`)
+   - `{{APP_NAME}}` = `appName` 全大写、横线变下划线
+   - `{{basePackagePath}}` = `basePackage.replace('.', '/')`
+3. **appName 含横线时给出警告**:横线会污染 MySQL 表名(`{{appName}}_sequence`)和 Zdal `appDsName`,
+   建议改为纯小写无横线(如 `mycmdeliverhub`)。仅警告不阻断,用户可继续。
+4. 执行 pre-flight 4 项检查,不通过即退出
+5. 向用户**一次性**展示即将生成的目录树和 TODO 项,等用户确认(`--force` 跳过)
+
+### Phase 1: 根目录基础文件(3 个)
+
+从 `templates/root/` 拷贝并替换占位符:
+
+| 源 | 目标 |
+|---|---|
+| `templates/root/pom.xml.tmpl` | `pom.xml` |
+| `templates/root/gitignore` | `.gitignore`(注意源文件名是 `gitignore` 无前导点,避免被 git 忽略) |
+| `templates/root/helmcode-suggested-commit.txt.tmpl` | `.helmcode-suggested-commit.txt` |
+
+### Phase 2: `conf/` 配置(4 个,Linke 平台必需)
+
+| 源 | 目标 |
+|---|---|
+| `templates/conf/iac/meta-default.yml.tmpl` | `conf/iac/{{appName}}/meta/default.yml` |
+| `templates/conf/iac/ci-default.yml.tmpl` | `conf/iac/{{appName}}/ci/default.yml` |
+| `templates/conf/iac/database-default.yml` | `conf/iac/{{appName}}/database/default.yml` |
+| `templates/conf/bin/hook.sh` | `conf/bin/hook.sh`(模式 0755) |
+
+### Phase 3: 6 模块 pom.xml(6 个)
+
+| 源 | 目标 |
+|---|---|
+| `templates/app/bootstrap/pom.xml.tmpl` | `app/bootstrap/pom.xml` |
+| `templates/app/web/pom.xml.tmpl` | `app/web/pom.xml`(仅 `--with-web=true`) |
+| `templates/app/application/pom.xml.tmpl` | `app/application/pom.xml` |
+| `templates/app/domain/pom.xml.tmpl` | `app/domain/pom.xml` |
+| `templates/app/infrastructure/pom.xml.tmpl` | `app/infrastructure/pom.xml` |
+| `templates/app/facade/pom.xml.tmpl` | `app/facade/pom.xml` |
+
+若 `--with-web=false`:从 `pom.xml.tmpl` 模板里**移除** `<module>app/web</module>` 行,bootstrap 模块的 `web` 依赖也跳过。
+
+### Phase 4: bootstrap 模块代码与配置(10 个)
+
+| 源 | 目标 |
+|---|---|
+| `templates/app/bootstrap/Application.java.tmpl` | `app/bootstrap/src/main/java/{{basePackagePath}}/{{AppName}}Application.java` |
+| `templates/app/bootstrap/application.properties.tmpl` | `app/bootstrap/src/main/resources/config/application.properties` |
+| `templates/app/bootstrap/application-default.properties` | `app/bootstrap/src/main/resources/config/application-default.properties` |
+| `templates/app/bootstrap/application-{env}.properties` ×5 | `app/bootstrap/src/main/resources/config/application-{env}.properties` |
+| `templates/app/bootstrap/log4j2-spring.xml` | `app/bootstrap/src/main/resources/log4j2-spring.xml` |
+| `templates/app/bootstrap/example.xml` | `app/bootstrap/src/main/resources/spring/example.xml` |
+
+env ∈ {dev, test, sim, prepub, prod}。Application + 1 主 properties + 1 default + 5 env-properties + log4j2 + example = 10 个文件。
+
+### Phase 5: 5 业务模块的 DDD 包结构骨架(空目录 + `.gitkeep`)
+
+为以下每个目录创建 `.gitkeep`(在 cwd 下,路径含 `{{basePackagePath}}`):
+
+```
+app/application/src/main/java/{{basePackagePath}}/application/{facade,service,scheduler,handler,convert}/.gitkeep
+app/domain/src/main/java/{{basePackagePath}}/domain/{model,repository,service,enums,event,command,query,strategy,constant}/.gitkeep
+app/infrastructure/src/main/java/{{basePackagePath}}/infrastructure/{repository,mybatis/mapper,mybatis/model,integration,convert,config,log}/.gitkeep
+app/infrastructure/src/main/resources/mapper/.gitkeep
+app/facade/src/main/java/{{basePackagePath}}/facade/{facade,vo,request,command,enums}/.gitkeep
+```
+
+若 `--with-web=true`:额外创建 `app/web/src/main/java/{{basePackagePath}}/web/.gitkeep`。
+
+> Demo 切片(Phase 7)会向这些目录写文件,与 `.gitkeep` 共存,**不要删 `.gitkeep`**——用户删 Demo 后空目录还在。
+> 注意:Demo 切片采用 **`<module>.blacklist.<x>`** 包结构(垂直切片),与 `.gitkeep` 创建的 **`<module>.<x>`** 水平骨架并存,
+> 两种风格都可,用户后续 coding 时按团队偏好任选其一。
+
+### Phase 6: 基础设施真实接入(`@Configuration` × 4 + 共享工具 × 1,无条件生成,**不受 `--with-demo` 影响**)
+
+| 源 | 目标 |
+|---|---|
+| `templates/app/infrastructure/config/ZdalConfiguration.java.tmpl` | `app/infrastructure/src/main/java/{{basePackagePath}}/infrastructure/config/ZdalConfiguration.java` |
+| `templates/app/infrastructure/config/MybatisConfiguration.java.tmpl` | `app/infrastructure/src/main/java/{{basePackagePath}}/infrastructure/config/MybatisConfiguration.java` |
+| `templates/app/infrastructure/config/SequenceConfiguration.java.tmpl` | `app/infrastructure/src/main/java/{{basePackagePath}}/infrastructure/config/SequenceConfiguration.java` |
+| `templates/app/infrastructure/config/AntKmsBeanConfig.java.tmpl` | `app/infrastructure/src/main/java/{{basePackagePath}}/infrastructure/config/AntKmsBeanConfig.java` |
+| `templates/app/infrastructure/log/MycmLoggerDef.java.tmpl` | `app/infrastructure/src/main/java/{{basePackagePath}}/infrastructure/log/MycmLoggerDef.java` |
+| `templates/sql/V000__init_sequence.sql` | `sql/V000__init_sequence.sql`(infra 级,**不属于 demo**,删 demo 时保留) |
+
+> **关键**:4 个 `@Configuration` 全部生效(非占位)。仅在"应用绑定值"打 TODO:
+> - `ZdalConfiguration.singleDataSource` 的 `appDsName` / `appName` / `version`
+> - `SequenceConfiguration.zdalSequence` 的 `tableName`
+> - `AntKmsBeanConfig` 依赖的 properties(`mist_tenant` / `antkms_tenant_id` / `secretcore_mist_email`)
+>
+> `MycmLoggerDef` 继承 `com.mycm.common.model.constants.LoggerDef`,新增 `FACADE_SERVICE_LOGGER`
+> 常量供 `@FacadeIntercept(loggerName = ...)` 使用。Demo 切片依赖此类,即便 `--with-demo=false`
+> 也生成,因为后续业务代码大概率会用到。
+
+### Phase 7: EmailBlacklist Demo 切片(`--with-demo=true` 时)
+
+从 `templates/demo-slice/` 拷贝 18 个文件到对应位置,详见模板树。**每个文件头部必须保留**
+`// HelmCode Demo slice — safe to delete after onboarding` 标记,便于一键清盘。
+
+切片业务:邮箱黑名单管理,5 个 facade 方法:
+- `Result<Boolean> checkEmail(BlacklistCheckRequest)` — 读
+- `Result<Void> addBlacklist(@Valid BlacklistAddCommand)` — 写,带幂等
+- `Result<Void> removeBlacklist(@Valid BlacklistRemoveCommand)` — 软删
+- `Result<Paginator<BlacklistVO>> listByPage(BlacklistQueryRequest)` — 分页查询
+- `Result<Void> batchAddBlacklist(@Valid BlacklistBatchAddCommand)` — 批量写,用 `TransactionTemplate`
+
+涉及文件目录(垂直切片,统一在 `.blacklist.` 包下):
+```
+app/facade/src/main/java/{{basePackagePath}}/facade/blacklist/BlacklistFacade.java
+app/facade/src/main/java/{{basePackagePath}}/facade/blacklist/request/BlacklistCheckRequest.java
+app/facade/src/main/java/{{basePackagePath}}/facade/blacklist/request/BlacklistQueryRequest.java
+app/facade/src/main/java/{{basePackagePath}}/facade/blacklist/command/BlacklistAddCommand.java
+app/facade/src/main/java/{{basePackagePath}}/facade/blacklist/command/BlacklistRemoveCommand.java
+app/facade/src/main/java/{{basePackagePath}}/facade/blacklist/command/BlacklistBatchAddCommand.java
+app/facade/src/main/java/{{basePackagePath}}/facade/blacklist/vo/BlacklistVO.java
+
+app/application/src/main/java/{{basePackagePath}}/application/blacklist/BlacklistFacadeImpl.java
+app/application/src/main/java/{{basePackagePath}}/application/blacklist/convert/BlacklistVoConvert.java
+
+app/domain/src/main/java/{{basePackagePath}}/domain/blacklist/model/EmailBlacklist.java
+app/domain/src/main/java/{{basePackagePath}}/domain/blacklist/query/EmailBlacklistQuery.java
+app/domain/src/main/java/{{basePackagePath}}/domain/blacklist/repository/EmailBlacklistRepository.java
+app/domain/src/main/java/{{basePackagePath}}/domain/blacklist/service/EmailBlacklistService.java
+app/domain/src/main/java/{{basePackagePath}}/domain/blacklist/service/impl/EmailBlacklistServiceImpl.java
+
+app/infrastructure/src/main/java/{{basePackagePath}}/infrastructure/blacklist/repository/EmailBlacklistRepositoryImpl.java
+app/infrastructure/src/main/java/{{basePackagePath}}/infrastructure/blacklist/mybatis/model/EmailBlacklistDO.java
+app/infrastructure/src/main/java/{{basePackagePath}}/infrastructure/blacklist/mybatis/mapper/EmailBlacklistDOMapper.java
+app/infrastructure/src/main/resources/mapper/EmailBlacklistDOMapper.xml
+app/infrastructure/src/main/java/{{basePackagePath}}/infrastructure/blacklist/convert/EmailBlacklistConvert.java
+
+app/web/src/main/java/{{basePackagePath}}/web/blacklist/BlacklistController.java   ← 若 --with-web
+
+sql/V001__init_email_blacklist.sql
+```
+
+> 说明:Demo 不生成 `BlacklistAppService` —— FacadeImpl 直接编排 `EmailBlacklistService`(domain service),
+> 这是 billmanage 当前现状。后续业务复杂到需要"应用服务"层时,用户自行新增 `application/<biz>/service/`。
+> Convert 命名遵循 **`xxxVoConvert`**(小驼峰 `Vo`),与 billmanage 现状对齐,不要写成 `BlacklistVOConvert`。
+
+### Phase 8: CLAUDE.md(工程级宪法)
+
+从 `claude-md/CLAUDE.md.tmpl` 拷贝替换 → `CLAUDE.md`。
+
+### Phase 9: 注入 HelmCode 工作流(`--with-workflow=true`)
+
+复用 `loader/SKILL.md` 已有逻辑(若 HELMCODE_HOME 可解析则直接调用其 bash 段;否则按下表手工拷贝):
+
+```
+core/{clarify,dev-flow,implement,verify,analyze}/   → .claude/skills/{skill}/
+core/*/references/                                  → 随各 skill 一起带过去(在 .claude/skills/{skill}/references/)
+commands/*                                          → .claude/commands/
+standards/java-ddd/*.md                             → .claude/standards/
+standards/java-ddd/patterns/*                       → .claude/standards/patterns/
+templates/contract-template.md                      → .claude/templates/contract-template.md
+```
+
+并创建:
+- `.claude/contracts/registry.md`(空注册表头)
+- `.claude/briefs/` `.claude/judgment-logs/`(空目录 + `.gitkeep`)
+- `memory/.gitkeep` + `MEMORY.md`(空索引)
+- `.helmcode-version`(记录本次用的 HelmCode 版本,从 `<HELMCODE_HOME>/package.json` 读 `version` 字段)
+
+### Phase 10: 收尾
+
+1. 写 `.claude/init-java-ddd.lock`,内容:
+   ```yaml
+   timestamp: <ISO8601>
+   helmcodeVersion: <从 package.json 读>
+   skillVersion: 1.0
+   args:
+     appName: ...
+     basePackage: ...
+     # 全部入参快照
+   ```
+
+2. `git add -A` 但**不自动 commit**。
+
+3. 终端打印 **TODO checklist**(同步写到 `.helmcode-todo.md` 供用户后续查阅):
+   ```
+   ✅ {{appName}} 骨架已生成
+
+   ⚠️  以下 4 件事需要你手动完成才能跑通:
+
+   [1] 申请 DDS 数据源,把 app/infrastructure/.../config/ZdalConfiguration.java 里:
+         - appDsName("{{appName}}_ds")
+         - appName("{{appName}}")
+         - version("REPLACE_ME_DDS_VERSION")
+       替换为 DDS 控制台分配的真实值
+
+   [2] 让 DBA 在目标库建表(参考 sql/V001 末尾):
+         - {{appName}}_sequence  (sequence 元数据表)
+         - email_blacklist        (demo 切片表,后续删 demo 时一并删)
+
+   [3] 申请 mist key,把 app/bootstrap/.../config/application.properties 里:
+         - mist_tenant
+         - antkms_tenant_id
+         - secretcore_mist_email
+       填上真实值
+
+   [4] 跑 sql/V001__init_email_blacklist.sql 在测试库建 demo 表
+
+   ✓ 验证编译: mvn -pl app/bootstrap -am compile
+   ✓ 读约定:   cat CLAUDE.md
+   ✓ 查命令:   ls .claude/commands/
+
+   清 demo 时:
+     grep -rl "HelmCode Demo slice" . | xargs rm -f
+     rm sql/V001__init_email_blacklist.sql
+   ```
+
+---
+
+## 变量替换规则
+
+技能执行时,对每个 `.tmpl` 文件做以下字符串替换,然后写到目标位置(去掉 `.tmpl` 后缀):
+
+| 占位符 | 计算方式 | 示例 |
+|---|---|---|
+| `{{appName}}` | `--app-name` | `mycmdeliverhub` |
+| `{{AppName}}` | 大驼峰化(横线拆词,首字母大写) | `Mycmdeliverhub` 或 `MycmDeliverHub` |
+| `{{APP_NAME}}` | 全大写,横线变下划线 | `MYCMDELIVERHUB` |
+| `{{basePackage}}` | `--base-package` | `com.mycm.deliverhub` |
+| `{{basePackagePath}}` | `basePackage.replace('.', '/')` | `com/mycm/deliverhub` |
+| `{{groupId}}` | `--group-id` 或 `basePackage` 前两段 | `com.mycm` |
+| `{{javaVersion}}` | `--java-version` | `21` |
+| `{{sofaBootVersion}}` | `--sofaboot-version` | `4.7.0` |
+
+**重要**:`{{AppName}}` 的大驼峰处理与 billmanage 现状对齐——
+billmanage 的 `MycmBillManageApplication` / mycmdeliverhub 的 `MycmdeliverhubApplication`
+都是单段不拆词。本技能默认采用**单段保留**策略:`mycmdeliverhub` → `Mycmdeliverhub`,
+除非 appName 显式含横线(如 `mycm-deliver-hub`)才拆词,这与 Linke 当前行为一致。
+
+非 `.tmpl` 文件(如 `hook.sh`、`log4j2-spring.xml`、`gitignore`)中也可能含占位符,
+**所有 templates/ 下的文件**都先做字符串替换再写出。
+
+---
+
+## 后置条件
+
+- ✅ 根目录有 `pom.xml`、`CLAUDE.md`、`.gitignore`、`.helmcode-todo.md`
+- ✅ `app/{bootstrap,application,domain,infrastructure,facade}` 5 个模块齐(`web` 视 `--with-web`)
+- ✅ 6 个 pom.xml 全部存在
+- ✅ 4 个 `@Configuration`(Zdal/Mybatis/Sequence/AntKms)全部存在
+- ✅ Application 入口含 `@ComponentScan({"{{basePackage}}", "com.mycm.common.command"})` + `@EnableAspectJAutoProxy` + 双 `@ImportResource`
+- ✅ `--with-demo=true` 时:18 个 demo 文件存在,每个文件头有 `HelmCode Demo slice` marker
+- ✅ `--with-workflow=true` 时:`.claude/skills/` `.claude/commands/` `.claude/standards/` 全部就位
+- ✅ `.claude/init-java-ddd.lock` 写入完整入参快照
+
+**编译验证**(非阻塞,失败也不回滚——告知用户):
+```bash
+mvn -pl app/bootstrap -am compile -DskipTests
+```
+此命令应通过(前提是 DDS/mist TODO 不影响编译期——4 个 `@Configuration` 的字段值都在运行期才生效)。
+
+---
+
+## 反模式硬约束(写入 CLAUDE.md,执行期也要遵守)
+
+详见 `references/antipatterns.md`。生成的模板内容中**不允许**出现以下:
+
+1. `spring.main.allow-bean-definition-overriding=true`
+2. env 专属值出现在 `application-default.properties`
+3. `BeanUtils.copyProperties` 调用(强制用 MapStruct)
+4. `Result.fail("STRING_CODE", ...)` 硬编码字符串(强制走 `ErrorCodeEnum`)
+5. 注释掉的代码常驻
+6. 类头 `@author xxx` / `@version xxx` 标签
+7. 在 `application.properties` 里混用 sofa 命名空间 + 业务 snake_case 不加分组注释
+
+---
+
+## 调用方式
+
+本 skill **不通过 `helmcode` CLI 入口暴露**——`helmcode` 只负责把 skill 安装到工程的 `.claude/skills/`,
+冷启动初始化由 Claude(或本地 Agent)在对话中按需加载并执行,以便交互式确认入参与 TODO。
+
+典型调用(在已安装 HelmCode 的空仓库中,与 Claude 对话):
+
+```
+你是 init-java-ddd 技能,请帮我初始化一个 SOFABoot DDD 应用,
+appName=mycmdeliverhub, basePackage=com.mycm.deliverhub,
+带 demo + workflow + web 模块。
+```
+
+技能在缺必填参数(`--app-name` / `--base-package`)时会主动追问,确认后再写盘。
+
+---
+
+## 错误恢复
+
+任何 phase 失败:
+- 不自动回滚(让用户看到已生成的部分,便于排查)
+- 打印 `已完成: phase 1..N-1, 失败: phase N, 原因: ...`
+- 提示用户:`git clean -fdx && git checkout .` 可还原到执行前
+
+---
+
+## 输出
+
+- 完整 SOFABoot DDD 工程骨架(见后置条件)
+- `.helmcode-todo.md` —— 用户后续手动 4 件事 checklist
+- `.helmcode-suggested-commit.txt` —— 建议的首次 commit message
+- `.claude/init-java-ddd.lock` —— 入参快照,防止重复执行

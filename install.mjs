@@ -191,8 +191,8 @@ function configureClaudeMd(projectDir, preset) {
   const helmcodeSection = `
 # HelmCode 工作流
 
-主流程: /dev-flow (clarify → implement → verify)
-单独使用: /clarify, /implement, /verify, /analyze
+主流程: /dev-flow (clarify → /goal → checkpoint)
+单独使用: /clarify, /implement, /verify, /analyze, /checkpoint
 
 ## 编码标准
 - 编码标准: .claude/standards/standards.md
@@ -644,11 +644,9 @@ export async function install(options) {
   console.log(`  Standards: ${standardsCount} files`);
   console.log('');
   console.log('  Usage:');
-  console.log('    /dev-flow    — AI coding workflow (clarify → implement → verify)');
+  console.log('    /dev-flow    — Goal-driven workflow (clarify → /goal → checkpoint)');
   console.log('    /clarify     — Break down requirements into behavior contract');
-  console.log('    /implement   — Generate code + judgment log');
-  console.log('    /verify      — Validate code + review judgments');
-  console.log('    /analyze     — Architecture compliance check');
+  console.log('    /checkpoint  — Review judgment log decisions');
   console.log('');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 }

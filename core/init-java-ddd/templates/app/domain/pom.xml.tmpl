@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>{{groupId}}</groupId>
+        <artifactId>{{appName}}-parent</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+    <artifactId>{{appName}}-domain</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+
+    <!--
+        domain 模块原则:聚合根 / 仓储接口 / 领域服务接口;不应反向依赖 application / facade。
+        以下 Spring/SOFA 依赖与 billmanage 现状保持一致(领域服务里用 @Service 注解);
+        如需更纯净的 domain,可逐步剥离这些 starter 改为单独的 spring-context。
+    -->
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.alipay.sofa</groupId>
+            <artifactId>runtime-alipay-sofa-boot-starter</artifactId>
+        </dependency>
+        <!-- 仅依赖 mycm-common 拿 ErrorCodeEnum / MycmBizException,不依赖 facade -->
+        <dependency>
+            <groupId>com.mycm.common</groupId>
+            <artifactId>mycm-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.skyscreamer</groupId>
+                    <artifactId>jsonassert</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-starter-logging</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+    </dependencies>
+</project>

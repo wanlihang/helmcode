@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>{{groupId}}</groupId>
+        <artifactId>{{appName}}-parent</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+    <artifactId>{{appName}}-application</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.alipay.sofa</groupId>
+            <artifactId>rpc-alipay-sofa-boot-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>{{groupId}}</groupId>
+            <artifactId>{{appName}}-domain</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>{{groupId}}</groupId>
+            <artifactId>{{appName}}-facade</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>{{groupId}}</groupId>
+            <artifactId>{{appName}}-infrastructure</artifactId>
+        </dependency>
+        <!-- mycm 公共组件:Result / Paginator / ErrorCodeEnum / MycmCommonException -->
+        <dependency>
+            <groupId>com.mycm.common</groupId>
+            <artifactId>mycm-common</artifactId>
+        </dependency>
+        <!-- MycmCommonException 祖先类所在 jar,mycm-common 未传递,显式补 -->
+        <dependency>
+            <groupId>com.alipay.common</groupId>
+            <artifactId>alipay-common-error</artifactId>
+        </dependency>
+        <!-- mycm 切面组件:@FacadeIntercept -->
+        <dependency>
+            <groupId>com.mycm.common</groupId>
+            <artifactId>mycm-component</artifactId>
+        </dependency>
+        <!-- validation,facade 入参用 @Valid -->
+        <dependency>
+            <groupId>javax.validation</groupId>
+            <artifactId>validation-api</artifactId>
+        </dependency>
+        <!-- MapStruct -->
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct-processor</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <!-- Lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+</project>

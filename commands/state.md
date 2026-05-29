@@ -19,7 +19,7 @@ arguments: "[feature-id]"
 ## 状态机
 
 ```
-draft → approved → implementing → done
+draft → approved → goal-running → done
   ↓                   ↓
 abandoned           blocked
 ```
@@ -27,11 +27,11 @@ abandoned           blocked
 | 状态 | 含义 | 可转换到 |
 |------|------|---------|
 | draft | 行为契约草稿，待审查 | approved, abandoned |
-| approved | 行为契约已批准，可开始实现 | implementing, abandoned |
-| implementing | 代码实现中 | done, blocked, abandoned |
-| done | 实现完成，验收通过 | -（终态） |
+| approved | 行为契约已批准，可设置 /goal | goal-running, abandoned |
+| goal-running | /goal 循环中，AI 自主执行 | done, blocked, abandoned |
+| done | goal achieved，验收通过 | -（终态） |
 | abandoned | 已废弃 | draft（重新激活） |
-| blocked | 实现阻塞，等待外部依赖或决策 | implementing, abandoned |
+| blocked | /goal 中断（8-block 安全阀），等待人介入 | goal-running, abandoned |
 
 ## 执行逻辑
 
@@ -50,15 +50,15 @@ abandoned           blocked
 
 📊 Feature 状态概览
 
-  F001-recon-task       implementing   ██████████░░░░  70%  3/5 验收条件通过
-  F002-settlement       approved       ░░░░░░░░░░░░░░   0%  待开始实现
+  F001-recon-task       goal-running   ██████████░░░░  70%  3/5 验收条件通过
+  F002-settlement       approved       ░░░░░░░░░░░░░░   0%  待设置 /goal
   F003-merchant-import  draft          ░░░░░░░░░░░░░░   0%  待审查
 
 > /state F001-recon-task
 
-📊 F001-recon-task — implementing
+📊 F001-recon-task — goal-running
 
-  当前状态: implementing（进入时间: 2026-05-13 10:00）
+  当前状态: goal-running（进入时间: 2026-05-13 10:00）
   行为契约: .claude/contracts/F001-recon-task.md
   判断日志: .claude/judgment-logs/F001-recon-task.md
 

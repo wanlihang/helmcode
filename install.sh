@@ -237,8 +237,8 @@ fi
 CLAUDE_MD_HELMCODE="
 # HelmCode 工作流
 
-主流程: /dev-flow (clarify → implement → verify)
-单独使用: /clarify, /implement, /verify, /analyze
+主流程: /dev-flow (clarify → /goal → checkpoint)
+单独使用: /clarify, /checkpoint
 
 ## 编码标准
 - 编码标准: .claude/standards/standards.md
@@ -283,11 +283,8 @@ echo "     Skills: ${SKILL_COUNT} 个"
 echo "     Standards: ${STANDARDS_COUNT} 个文件"
 echo ""
 echo "  🚀 使用方式:"
-echo "     /dev-flow          — AI 编程主工作流 (clarify → implement → verify)"
+echo "     /dev-flow          — Goal 驱动工作流 (clarify → /goal → checkpoint)"
 echo "     /clarify           — 拆解需求，生成行为契约"
-echo "     /implement         — 读取行为契约，生成代码 + 判断日志"
-echo "     /verify            — 验证代码 + 审查判断日志"
-echo "     /analyze           — 架构合规分析"
 echo ""
 echo "  📝 工作流:"
 echo "     1. /clarify — 描述需求 → 生成行为契约（人审查约束）"

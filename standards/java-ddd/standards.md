@@ -19,7 +19,7 @@
 | ValueObject | @Data | - |
 | DO | @Data（审计字段内联声明，不继承基类）| extends 任何基类 |
 | Request/Command/Query | @Data（extends BaseRequest 时加 @EqualsAndHashCode(callSuper=true)）| - |
-| Facade 实现 | @RpcProvider | @Service |
+| Facade 实现 | @RpcProvider 或 @SofaService | @Service（单独使用） |
 | Facade 方法 | @FacadeIntercept(loggerName = LoggerDef.BIZ_SERVICE_LOGGER) | - |
 | Application Service | @Service | - |
 | Repository 实现 | @Repository | - |
@@ -98,11 +98,13 @@
 | 复杂操作 | 10000ms | - |
 | 外部调用 | 15000ms | - |
 
-- RPC 服务提供：Facade 实现使用 @RpcProvider
+- RPC 服务提供：Facade 实现使用 @RpcProvider 或 @SofaService
 - RPC 服务消费：集中配置类中使用 @RpcConsumer(timeout = xxx)
-- 集成客户端封装：FacadeClient 接口 + FacadeClientImpl + @SalLog
+- 集成客户端封装：FacadeClient 接口 + FacadeClientImpl（命名可按项目约定覆盖）
+- 集成客户端日志：@SalLog(loggerName = LoggerDef.SAL_DETAIL_LOGGER)
 - Mapper 调用日志：@DalLog
-- 集成客户端必须做 Result 校验（Preconditions.checkState）
+- 集成客户端必须做 Result 校验（Preconditions.checkNotNull + Preconditions.checkState）
+- Preconditions 来源：Guava 或项目自定义工具类（由 project-conventions.md 确定）
 
 ## 8. 日志规范
 
@@ -150,5 +152,9 @@
 - 错误码枚举名（ErrorCodeEnum / 项目自定义）
 - MapStruct 使用（INSTANCE / I / 不使用）
 - 持久层框架（MyBatis XML / MyBatis-Plus）
-- 集成客户端封装模式
+- 集成客户端封装模式（FacadeClient / Adapter / 手写日志）
+- Preconditions 来源（Guava / 项目自定义）
 - Logger 常量定义
+- ACTS Base Class 名称
+- SOFABootTestApplication 位置
+- dbmode 和 test_artifacts 配置

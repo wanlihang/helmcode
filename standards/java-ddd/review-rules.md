@@ -6,7 +6,7 @@
 
 - [ ] 领域层不依赖基础设施层（import 检查：domain/ 目录下无 infrastructure/ 的 import）
 - [ ] 领域层不使用 @Slf4j（禁止日志）
-- [ ] Facade 实现使用 @RpcProvider 而非 @Service
+- [ ] Facade 实现使用 @RpcProvider 或 @SofaService 发布服务
 - [ ] 依赖方向正确：bootstrap → facade → application → domain
 - [ ] Repository 接口在 domain 层，实现在 infrastructure 层
 
@@ -48,10 +48,11 @@
 
 ## G. 测试
 
-- [ ] 每个修改的类有对应测试
-- [ ] 测试覆盖 6 种必测场景（至少 P0 + P1）
-- [ ] 测试命名符合规范
-- [ ] Mock 清理使用 try-finally
+- [ ] 每个 Facade 方法有 ACTS 集成测试
+- [ ] ACTS 测试覆盖 4 种必测场景（case01 正常路径、case02 参数校验、case03 依赖失败、case04 业务错误）
+- [ ] caseObjs.yaml 包含完整 7 个 section
+- [ ] Domain / 工具类有 TestNG + Mockito 单元测试
+- [ ] Mock 在 afterActsTest() 中清理
 
 ## H. 代码质量
 

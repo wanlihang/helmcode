@@ -1,0 +1,58 @@
+/*
+ * Copyright (c) 2026 All Rights Reserved.
+ */
+package {{basePackage}};
+
+import com.alipay.sofa.boot.reader.VelocityXmlBeanDefinitionReader;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
+import org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration;
+import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration;
+import org.springframework.boot.autoconfigure.transaction.TransactionManagerCustomizationAutoConfiguration;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.EnableAspectJAutoProxy;
+import org.springframework.context.annotation.ImportResource;
+
+/**
+ * SOFABoot 应用入口。
+ *
+ * 关键约定:
+ * - exclude 掉 JDBC/JPA 自动装配, 数据源由 ZdalConfiguration 显式声明
+ * - 双 ImportResource: classpath*:spring/*.xml 和 classpath*:META-INF/spring/*.xml,
+ *   reader 使用 VelocityXmlBeanDefinitionReader 以兼容 SOFABoot 占位符
+ * - ComponentScan 必须覆盖 {{basePackage}} 与 com.mycm.common.command (mycm-command 模块要求)
+ * - EnableAspectJAutoProxy(exposeProxy=true, proxyTargetClass=true), 业务侧透传
+ */
+@SpringBootApplication(exclude = {
+        DataSourceAutoConfiguration.class,
+        DataSourceTransactionManagerAutoConfiguration.class,
+        HibernateJpaAutoConfiguration.class,
+        TransactionManagerCustomizationAutoConfiguration.class
+})
+@ImportResource(
+        locations = {"classpath*:spring/*.xml", "classpath*:META-INF/spring/*.xml"},
+        reader = VelocityXmlBeanDefinitionReader.class
+)
+@ComponentScan(basePackages = {"{{basePackage}}", "com.mycm.common.command"})
+@EnableAspectJAutoProxy(exposeProxy = true, proxyTargetClass = true)
+public class {{AppName}}Application {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger({{AppName}}Application.class);
+
+    public static void main(String[] args) {
+        try {
+            SpringApplication.run({{AppName}}Application.class, args);
+            LOGGER.info("SOFABoot Application Start!!!");
+        } catch (Throwable e) {
+            LOGGER.error("SOFABoot Application Start Fail!!! More logs can be found on"
+                    + " 1) logs/sofa-runtime/common-error.log"
+                    + " 2) logs/spring/spring.log"
+                    + " 3) logs/mvc/common-error.log"
+                    + " 4) logs/health-check/common-error.log", e);
+            throw e;
+        }
+    }
+}

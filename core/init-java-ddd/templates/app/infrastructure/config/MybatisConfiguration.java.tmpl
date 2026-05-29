@@ -1,0 +1,62 @@
+package {{basePackage}}.infrastructure.config;
+
+import com.mycm.common.model.exception.ErrorCodeEnum;
+import com.mycm.common.model.exception.MycmBizException;
+import org.apache.ibatis.annotations.Mapper;
+import org.mybatis.spring.SqlSessionFactoryBean;
+import org.mybatis.spring.annotation.MapperScan;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
+import org.springframework.core.io.support.ResourcePatternResolver;
+
+import javax.sql.DataSource;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+/**
+ * MyBatis SqlSessionFactory 配置。
+ *  - mapper 接口扫描:本应用 infrastructure 全包(用 @Mapper 注解过滤)+ mycm-common 自带的 command mapper 包;
+ *    这样新增切片不需要修改本配置,只要把 mapper 接口放在 infrastructure.* 任意子包下并加 @Mapper 即可。
+ *  - mapper.xml 路径:classpath*:mapper/*.xml + classpath*:mapper/command/*.xml。
+ */
+@Configuration
+@MapperScan(
+        basePackages = {"{{basePackage}}.infrastructure", "com.mycm.common.command.mapper"},
+        annotationClass = Mapper.class,
+        sqlSessionFactoryRef = "sqlSessionFactoryBeanForSingle"
+)
+public class MybatisConfiguration {
+
+    @Bean("sqlSessionFactoryBeanForSingle")
+    public SqlSessionFactoryBean sqlSessionFactoryBeanForSingle(@Qualifier(value = "singleDataSource") DataSource dataSource) {
+        SqlSessionFactoryBean sqlSessionFactoryBean = new SqlSessionFactoryBean();
+        sqlSessionFactoryBean.setDataSource(dataSource);
+        sqlSessionFactoryBean.setMapperLocations(resolveMapperLocations());
+        org.apache.ibatis.session.Configuration configuration = new org.apache.ibatis.session.Configuration();
+        configuration.setMapUnderscoreToCamelCase(true);
+        sqlSessionFactoryBean.setConfiguration(configuration);
+        return sqlSessionFactoryBean;
+    }
+
+    private Resource[] resolveMapperLocations() {
+        ResourcePatternResolver resourceResolver = new PathMatchingResourcePatternResolver();
+        List<String> mapperLocations = new ArrayList<>();
+        mapperLocations.add("classpath*:mapper/*.xml");
+        mapperLocations.add("classpath*:mapper/command/*.xml");
+        List<Resource> resources = new ArrayList<>();
+        for (String mapperLocation : mapperLocations) {
+            try {
+                Resource[] mappers = resourceResolver.getResources(mapperLocation);
+                resources.addAll(Arrays.asList(mappers));
+            } catch (IOException e) {
+                throw new MycmBizException(ErrorCodeEnum.CONFIGURATION_ERROR, "mapperLocations is null", e);
+            }
+        }
+        return resources.toArray(Resource[]::new);
+    }
+}

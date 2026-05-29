@@ -1,7 +1,7 @@
 ---
 name: helmcode-loader
 description: |
-  HelmCode 安装器。将 AI 编程工作流（clarify → implement → verify）安装到目标项目。
+  HelmCode 安装器。将 AI 编程工作流（clarify → /goal → checkpoint）安装到目标项目。
   按 preset 安装 skills、standards、templates，并创建项目目录结构。
 
   触发场景：
@@ -10,14 +10,15 @@ description: |
   - 新项目初始化开发环境
 
   特性：按 preset 安装，每个 skill 自带 references（模板、规范、启发规则）。
-version: 2.0
+  利用 Claude Code 的 /goal 机制驱动自主执行闭环。
+version: 3.0
 author: HelmCode
-tags: [loader, init, 安装, HelmCode]
+tags: [loader, init, 安装, HelmCode, goal]
 ---
 
 # helmcode-loader: HelmCode 安装器
 
-> **人把舵，AI 划桨** — 围绕"人的判断力是最稀缺资源"设计的 AI 编程工作流
+> **人定义终点，AI 自主到达** — goal 驱动的 AI 编程工作流
 
 ---
 
@@ -32,7 +33,9 @@ tags: [loader, init, 安装, HelmCode]
 ## 核心理念
 
 HelmCode 是什么：
-- AI 编程工作流：clarify → implement → verify
+- AI 编程工作流：clarify → /goal → checkpoint
+- 利用 Claude Code 的 /goal 机制驱动自主执行闭环
+- 行为契约的验收条件 = /goal 的完成条件
 - 按项目安装：skills + standards + templates + 目录结构
 - behavior-driven：行为契约替代 L1-L4 文档流水线
 
@@ -56,10 +59,10 @@ HelmCode 不是什么：
 
 | Skill | 职责 | 安装内容 |
 |-------|------|---------|
-| dev-flow | AI 编程主工作流（3步循环） | SKILL.md |
+| dev-flow | 主编排器（clarify → /goal → checkpoint） | SKILL.md + references/（goal 条件构建器） |
 | clarify | 需求拆解，产出行为契约 | SKILL.md + references/（模板、澄清维度） |
-| implement | 自动实现，产出判断日志 | SKILL.md + references/（判断规范、上下文规则） |
-| verify | 验证与判断审查 | SKILL.md |
+| implement | goal loop 内的代码生成 worker | SKILL.md + references/（判断规范、上下文规则） |
+| verify | goal loop 内的验证动作集 | SKILL.md |
 | analyze | 架构合规分析 | SKILL.md |
 
 ---
@@ -106,7 +109,9 @@ Standards: 无
 ├── .claude/
 │   ├── skills/
 │   │   ├── dev-flow/
-│   │   │   └── SKILL.md
+│   │   │   ├── SKILL.md
+│   │   │   └── references/
+│   │   │       └── goal-condition-builder.md
 │   │   ├── clarify/
 │   │   │   ├── SKILL.md
 │   │   │   └── references/
@@ -270,8 +275,8 @@ fi
 
 ```markdown
 # HelmCode 工作流
-主流程: /dev-flow (clarify → implement → verify)
-单独使用: /clarify, /implement, /verify, /analyze
+主流程: /dev-flow (clarify → /goal → checkpoint)
+单独使用: /clarify, /checkpoint
 
 ## 编码标准
 - 编码标准: .claude/standards/standards.md
@@ -338,5 +343,6 @@ fi
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v3.0 | 2026-05-26 | 集成 /goal：从手动串联改为 goal 驱动自主闭环 |
 | v2.0 | 2026-05-14 | 重构为 HelmCode：行为契约 + 判断日志，替代 L1-L4 |
 | v1.0 | 2026-03-16 | 初始版本 |

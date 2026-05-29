@@ -1,0 +1,50 @@
+package {{basePackage}}.infrastructure.config;
+
+import com.alipay.zdal.client.jdbc.ZdalDataSource;
+import com.alipay.zdal.client.jdbc.builder.ZdalSequenceBuilder;
+import com.alipay.zdal.sequence.ZdalSequence;
+import com.mycm.common.sequence.SequenceService;
+import com.mycm.common.sequence.SequenceServiceImpl;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * 序列生成器配置 (基于 ZDAL Sequence)。
+ *  - 默认提供单库单表的 SequenceService;
+ *  - 序列表需事先建好,默认名为 {{appName}}_sequence。
+ */
+@Configuration
+public class SequenceConfiguration {
+
+    @Bean
+    public SequenceService sequenceService(@Qualifier(value = "zdalSingleSequence") ZdalSequence zdalSequence) {
+        return new SequenceServiceImpl(zdalSequence);
+    }
+
+    @Bean(initMethod = "init")
+    public ZdalSequence zdalSingleSequence(@Qualifier(value = "singleDataSource") ZdalDataSource dataSource) throws Exception {
+        return new ZdalSequenceBuilder()
+                .dataSource(dataSource)
+                // TODO: 若实际序列表名不同,请同步修改 (例如 {{appName}}_seq / {{appName}}_sequence)
+                .tableName("{{appName}}_sequence")
+                .minValue(1)
+                .maxValue(99999999)
+                .step(1)
+                .retryTimes(10)
+                .rules(createZdalShardingSequenceRuleMap())
+                .build();
+    }
+
+    /**
+     * Sequence 组装规则,默认 SIMPLE: systemDate(8) + dbId(2) + tableId(2) + sequenceValue(8) = 20 位。
+     */
+    private Map<String, String> createZdalShardingSequenceRuleMap() {
+        Map<String, String> ruleMap = new HashMap<>();
+        ruleMap.put("SIMPLE", "{length(systemDate)=8}{length(dbId)=2}{length(tableId)=2}{length(sequenceValue)=8}");
+        return ruleMap;
+    }
+}

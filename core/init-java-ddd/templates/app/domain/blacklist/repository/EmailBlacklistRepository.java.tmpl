@@ -1,0 +1,30 @@
+// HelmCode Demo slice — safe to delete after onboarding
+package {{basePackage}}.domain.blacklist.repository;
+
+import {{basePackage}}.domain.blacklist.model.EmailBlacklist;
+import {{basePackage}}.domain.blacklist.query.EmailBlacklistQuery;
+
+import java.util.List;
+
+/**
+ * 邮箱黑名单仓储接口(定义在 domain,实现在 infrastructure)。
+ */
+public interface EmailBlacklistRepository {
+
+    EmailBlacklist findByEmailAddress(String emailAddress);
+
+    boolean isBlacklisted(String email);
+
+    EmailBlacklist findById(Long id);
+
+    List<EmailBlacklist> findByQuery(EmailBlacklistQuery query);
+
+    long countByQuery(EmailBlacklistQuery query);
+
+    void save(EmailBlacklist blacklist);
+
+    /**
+     * 逻辑删除,返回影响行数。
+     */
+    int remove(Long id, String operator);
+}

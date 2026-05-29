@@ -1,0 +1,25 @@
+// HelmCode Demo slice — safe to delete after onboarding
+package {{basePackage}}.application.blacklist.convert;
+
+import {{basePackage}}.domain.blacklist.model.EmailBlacklist;
+import {{basePackage}}.facade.blacklist.vo.BlacklistVO;
+import org.mapstruct.Mapper;
+import org.mapstruct.factory.Mappers;
+
+import java.util.List;
+
+/**
+ * 领域对象 <-> VO 转换器(MapStruct)。
+ *
+ * 反模式提示:严禁在 FacadeImpl/AppService 中使用 BeanUtils.copyProperties。
+ * 一律走 MapStruct,字段不匹配编译期就能发现。
+ */
+@Mapper
+public interface BlacklistVoConvert {
+
+    BlacklistVoConvert INSTANCE = Mappers.getMapper(BlacklistVoConvert.class);
+
+    BlacklistVO toVo(EmailBlacklist domain);
+
+    List<BlacklistVO> toVoList(List<EmailBlacklist> domainList);
+}

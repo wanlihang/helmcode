@@ -141,3 +141,8 @@ public class {Business}ManageServiceImpl implements {Business}ManageService {
 - Use Preconditions to validate RPC result (null check + success check)
 - Application layer injects FacadeClient, never the raw Facade
 - Client interface and implementation live in `infrastructure/integration/{module}/`
+
+> **项目约定覆盖**:
+> - 命名可能是 FacadeClient/FacadeClientImpl 或 Adapter/AdapterImpl，由 project-conventions.md 确定
+> - Preconditions 可能使用 Guava (`com.google.common.base.Preconditions`) 或项目自定义工具类
+> - 部分项目不使用 @SalLog，而是手写日志或无审计日志

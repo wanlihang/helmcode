@@ -1,0 +1,60 @@
+package {{basePackage}}.infrastructure.config;
+
+import com.alipay.zdal.client.jdbc.ZdalDataSource;
+import com.alipay.zdal.client.jdbc.builder.ZdalDataSourceBuilder;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
+
+import javax.sql.DataSource;
+
+/**
+ * ZDAL 数据源与事务管理器配置。
+ *
+ * 使用前请确认:
+ *  1. 已在 DDS 平台为本应用注册数据源,得到 appDsName / version;
+ *  2. application.properties 中 sofa.boot.dds.* 已正确配置;
+ *  3. 若使用 DBMesh 部署,把 .useDbMesh(false) 改为 true。
+ */
+@Configuration
+public class ZdalConfiguration {
+
+    /**
+     * 单库单表数据源。
+     */
+    @Bean(initMethod = "init")
+    public ZdalDataSource singleDataSource() {
+        return ZdalDataSourceBuilder.create()
+                // TODO: 替换为 DDS 平台注册的实际 appDsName
+                .appDsName("{{appName}}_ds")
+                // appName 与当前 Spring Boot 应用名保持一致,如 appName 即为当前应用可省略
+                .appName("{{appName}}")
+                // TODO: 替换为 DDS 平台的实际数据源版本号 (例如 EI********)
+                .version("REPLACE_WITH_DDS_VERSION")
+                .useDbMesh(false)
+                .build();
+    }
+
+    /**
+     * 单库单表事务管理器。
+     */
+    @Bean
+    public TransactionManager txManagerForSingle(@Qualifier(value = "singleDataSource") DataSource dataSource) {
+        return new DataSourceTransactionManager(dataSource);
+    }
+
+    /**
+     * 默认事务模板;若已有事务则加入已有事务。
+     */
+    @Bean
+    @Primary
+    public TransactionTemplate transactionTemplate(
+            @Qualifier(value = "txManagerForSingle") TransactionManager transactionManager) {
+        return new TransactionTemplate((PlatformTransactionManager) transactionManager);
+    }
+}

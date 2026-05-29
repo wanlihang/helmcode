@@ -1,0 +1,26 @@
+// HelmCode Demo slice — safe to delete after onboarding
+package {{basePackage}}.domain.blacklist.service;
+
+import {{basePackage}}.domain.blacklist.model.EmailBlacklist;
+
+import java.util.List;
+
+/**
+ * 邮箱黑名单领域服务。
+ */
+public interface EmailBlacklistService {
+
+    boolean isBlacklisted(String email);
+
+    EmailBlacklist getById(Long id);
+
+    List<EmailBlacklist> listByPage(int pageNum, int pageSize, String emailAddress);
+
+    long countByCondition(String emailAddress);
+
+    void save(EmailBlacklist blacklist);
+
+    void remove(Long id, String operator);
+
+    void batchSave(List<EmailBlacklist> blacklists);
+}

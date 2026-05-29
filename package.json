@@ -1,7 +1,7 @@
 {
   "name": "helmcode",
-  "version": "2.0.0",
-  "description": "AI coding workflow: clarify → implement → verify. You steer, AI rows.",
+  "version": "2.0.2",
+  "description": "AI coding workflow: clarify → /goal → checkpoint. Goal-driven autonomous delivery, with optional Java DDD cold-start scaffold.",
   "bin": {
     "helmcode": "./bin/helmcode.mjs"
   },

@@ -1,0 +1,37 @@
+// HelmCode Demo slice — safe to delete after onboarding
+package {{basePackage}}.facade.blacklist.command;
+
+import com.mycm.common.model.base.BaseRequest;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+
+import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.NotEmpty;
+import javax.validation.constraints.Size;
+import java.io.Serial;
+import java.util.List;
+
+/**
+ * 批量添加黑名单的命令。
+ *
+ * extends BaseRequest 是 BizTemplate.doProcess 类型约束所必需。
+ */
+@EqualsAndHashCode(callSuper = true)
+@Data
+public class BlacklistBatchAddCommand extends BaseRequest {
+
+    @Serial
+    private static final long serialVersionUID = 1L;
+
+    /** 邮箱地址列表 */
+    @NotEmpty(message = "邮箱地址列表不能为空")
+    private List<String> emailAddressList;
+
+    /** 修改人(审计) */
+    @NotBlank(message = "修改人不能为空")
+    private String modifier;
+
+    /** 备注原因 */
+    @Size(max = 256, message = "备注最大 256 字符")
+    private String remark;
+}

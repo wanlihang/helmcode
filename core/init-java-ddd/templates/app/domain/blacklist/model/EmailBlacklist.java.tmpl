@@ -1,0 +1,57 @@
+// HelmCode Demo slice — safe to delete after onboarding
+package {{basePackage}}.domain.blacklist.model;
+
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
+
+import java.util.Date;
+
+/**
+ * 邮箱黑名单聚合根。
+ *
+ * 业务规则:
+ *  - 匹配规则:邮箱地址与黑名单库完全相等(忽略大小写);
+ *  - 唯一性:每个邮箱地址只能存在一条有效记录;
+ *  - 幂等性:重复添加相同邮箱应被静默吸收,不抛异常。
+ */
+@Getter
+@Setter
+@ToString
+public class EmailBlacklist {
+
+    // ==================== 审计字段 ====================
+
+    private Long id;
+    private Date gmtCreate;
+    private Date gmtModified;
+    private String creator;
+    private String modifier;
+
+    // ==================== 业务字段 ====================
+
+    /** 黑名单邮箱地址(存储前一律小写) */
+    private String emailAddress;
+
+    /** 备注原因 */
+    private String remark;
+
+    /**
+     * 判断邮箱是否与本黑名单匹配(忽略大小写)。
+     */
+    public boolean isMatch(String email) {
+        if (this.emailAddress == null || email == null) {
+            return false;
+        }
+        return this.emailAddress.equalsIgnoreCase(email.trim());
+    }
+
+    /**
+     * 数据有效性校验。
+     */
+    public boolean validate() {
+        return emailAddress != null
+                && !emailAddress.trim().isEmpty()
+                && emailAddress.contains("@");
+    }
+}

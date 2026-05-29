@@ -1,0 +1,36 @@
+// HelmCode Demo slice — safe to delete after onboarding
+package {{basePackage}}.facade.blacklist.vo;
+
+import lombok.Data;
+
+import java.io.Serial;
+import java.io.Serializable;
+import java.util.Date;
+
+/**
+ * 黑名单视图对象(对外返回结构)。
+ */
+@Data
+public class BlacklistVO implements Serializable {
+
+    @Serial
+    private static final long serialVersionUID = 1L;
+
+    /** 主键 ID */
+    private Long id;
+
+    /** 邮箱地址 */
+    private String emailAddress;
+
+    /** 创建时间 */
+    private Date gmtCreate;
+
+    /** 修改时间 */
+    private Date gmtModified;
+
+    /** 最后操作人 */
+    private String modifier;
+
+    /** 备注 */
+    private String remark;
+}

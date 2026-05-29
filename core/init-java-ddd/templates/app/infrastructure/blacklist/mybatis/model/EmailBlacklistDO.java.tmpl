@@ -1,0 +1,23 @@
+// HelmCode Demo slice — safe to delete after onboarding
+package {{basePackage}}.infrastructure.blacklist.mybatis.model;
+
+import lombok.Getter;
+import lombok.Setter;
+
+import java.util.Date;
+
+/**
+ * 邮箱黑名单数据对象,对应表 email_blacklist。
+ */
+@Getter
+@Setter
+public class EmailBlacklistDO {
+
+    private Long id;
+    private Date gmtCreate;
+    private Date gmtModified;
+    private String creator;
+    private String modifier;
+    private String emailAddress;
+    private String remark;
+}

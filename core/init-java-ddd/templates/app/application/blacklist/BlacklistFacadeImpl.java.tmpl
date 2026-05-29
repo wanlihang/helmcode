@@ -1,0 +1,118 @@
+// HelmCode Demo slice — safe to delete after onboarding
+package {{basePackage}}.application.blacklist;
+
+import com.alipay.sofa.rpc.api.annotation.RpcProvider;
+import {{basePackage}}.application.blacklist.convert.BlacklistVoConvert;
+import {{basePackage}}.domain.blacklist.model.EmailBlacklist;
+import {{basePackage}}.domain.blacklist.service.EmailBlacklistService;
+import {{basePackage}}.facade.blacklist.BlacklistFacade;
+import {{basePackage}}.facade.blacklist.command.BlacklistAddCommand;
+import {{basePackage}}.facade.blacklist.command.BlacklistBatchAddCommand;
+import {{basePackage}}.facade.blacklist.command.BlacklistRemoveCommand;
+import {{basePackage}}.facade.blacklist.request.BlacklistCheckRequest;
+import {{basePackage}}.facade.blacklist.request.BlacklistQueryRequest;
+import {{basePackage}}.facade.blacklist.vo.BlacklistVO;
+import {{basePackage}}.infrastructure.log.MycmLoggerDef;
+import com.mycm.common.component.template.BizTemplate;
+import com.mycm.common.component.log.annotation.FacadeIntercept;
+import com.mycm.common.model.base.Result;
+import com.mycm.common.model.paging.Paginator;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.support.TransactionTemplate;
+
+import javax.validation.Valid;
+import java.util.List;
+
+/**
+ * BlacklistFacade 实现(application 层)。
+ *
+ * 规范要点(与 standards/java-ddd/standards.md 一致):
+ *  1. **统一走 BizTemplate.doProcess**:异常捕获、参数校验、Result 包装全部由模板兜底,
+ *     facade 方法体里只保留"取数据/编排领域服务"的纯业务逻辑;
+ *  2. 错误码统一走 ErrorCodeEnum / MycmBizException(在 service 层 throw),
+ *     application 层不再 catch、不再硬编码字符串;
+ *  3. VO 转换走 BlacklistVoConvert(MapStruct),不允许使用 BeanUtils.copyProperties;
+ *  4. 日志由 @FacadeIntercept 统一打印入参/出参/耗时,不在 facade 里再写 log.warn / log.error。
+ */
+@RpcProvider
+public class BlacklistFacadeImpl implements BlacklistFacade {
+
+    @Autowired
+    private EmailBlacklistService emailBlacklistService;
+
+    @Autowired
+    private BizTemplate bizTemplate;
+
+    @Autowired
+    private TransactionTemplate transactionTemplate;
+
+    @Override
+    @FacadeIntercept(loggerName = MycmLoggerDef.FACADE_SERVICE_LOGGER)
+    public Result<Boolean> checkEmail(@Valid BlacklistCheckRequest request) {
+        return bizTemplate.doProcess(request,
+                () -> emailBlacklistService.isBlacklisted(request.getEmail()));
+    }
+
+    @Override
+    @FacadeIntercept(loggerName = MycmLoggerDef.FACADE_SERVICE_LOGGER)
+    public Result<Void> addBlacklist(@Valid BlacklistAddCommand command) {
+        return bizTemplate.doProcess(command, () -> {
+            EmailBlacklist blacklist = new EmailBlacklist();
+            blacklist.setEmailAddress(command.getEmailAddress());
+            blacklist.setModifier(command.getModifier());
+            blacklist.setRemark(command.getRemark());
+            emailBlacklistService.save(blacklist);
+            return null;
+        });
+    }
+
+    @Override
+    @FacadeIntercept(loggerName = MycmLoggerDef.FACADE_SERVICE_LOGGER)
+    public Result<Void> removeBlacklist(@Valid BlacklistRemoveCommand command) {
+        return bizTemplate.doProcess(command, () -> {
+            emailBlacklistService.remove(command.getId(), command.getModifier());
+            return null;
+        });
+    }
+
+    @Override
+    @FacadeIntercept(loggerName = MycmLoggerDef.FACADE_SERVICE_LOGGER)
+    public Result<Paginator<BlacklistVO>> listByPage(@Valid BlacklistQueryRequest request) {
+        return bizTemplate.doProcess(request, () -> {
+            List<EmailBlacklist> blacklistList = emailBlacklistService.listByPage(
+                    request.getPageNum(),
+                    request.getPageSize(),
+                    request.getEmailAddress());
+
+            long total = emailBlacklistService.countByCondition(request.getEmailAddress());
+            List<BlacklistVO> voList = BlacklistVoConvert.INSTANCE.toVoList(blacklistList);
+
+            Paginator<BlacklistVO> paginator = new Paginator<>();
+            paginator.setPage(request.getPageNum());
+            paginator.setItems((int) total);
+            paginator.setItemsPerPage(request.getPageSize());
+            paginator.setData(voList);
+            paginator.setHasNext(request.getPageNum() < (int) Math.ceil((double) total / request.getPageSize()));
+            return paginator;
+        });
+    }
+
+    @Override
+    @FacadeIntercept(loggerName = MycmLoggerDef.FACADE_SERVICE_LOGGER)
+    public Result<Void> batchAddBlacklist(@Valid BlacklistBatchAddCommand command) {
+        return bizTemplate.doProcess(command, () -> {
+            List<EmailBlacklist> emailBlacklists = command.getEmailAddressList().stream()
+                    .map(email -> {
+                        EmailBlacklist blacklist = new EmailBlacklist();
+                        blacklist.setEmailAddress(email);
+                        blacklist.setModifier(command.getModifier());
+                        blacklist.setRemark(command.getRemark());
+                        return blacklist;
+                    })
+                    .toList();
+            transactionTemplate.executeWithoutResult(
+                    status -> emailBlacklistService.batchSave(emailBlacklists));
+            return null;
+        });
+    }
+}

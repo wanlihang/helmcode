@@ -1,0 +1,42 @@
+// HelmCode Demo slice — safe to delete after onboarding
+package {{basePackage}}.facade.blacklist.request;
+
+import com.mycm.common.model.base.BaseRequest;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
+
+import javax.validation.constraints.Max;
+import javax.validation.constraints.Min;
+import javax.validation.constraints.NotNull;
+import java.io.Serial;
+
+/**
+ * 黑名单分页查询请求。
+ */
+@EqualsAndHashCode(callSuper = true)
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class BlacklistQueryRequest extends BaseRequest {
+
+    @Serial
+    private static final long serialVersionUID = 1L;
+
+    /** 页码,从 1 开始 */
+    @NotNull(message = "页码不能为空")
+    @Min(value = 1, message = "页码最小为 1")
+    private Integer pageNum = 1;
+
+    /** 每页条数 */
+    @NotNull(message = "每页条数不能为空")
+    @Min(value = 1, message = "每页条数最小为 1")
+    @Max(value = 500, message = "每页条数最大为 500")
+    private Integer pageSize = 20;
+
+    /** 邮箱地址(模糊匹配,可选) */
+    private String emailAddress;
+}

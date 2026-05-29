@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- HelmCode Demo slice — safe to delete after onboarding -->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="{{basePackage}}.infrastructure.blacklist.mybatis.mapper.EmailBlacklistDOMapper">
+
+    <resultMap id="BaseResultMap" type="{{basePackage}}.infrastructure.blacklist.mybatis.model.EmailBlacklistDO">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="gmt_create" property="gmtCreate" jdbcType="TIMESTAMP"/>
+        <result column="gmt_modified" property="gmtModified" jdbcType="TIMESTAMP"/>
+        <result column="creator" property="creator" jdbcType="VARCHAR"/>
+        <result column="modifier" property="modifier" jdbcType="VARCHAR"/>
+        <result column="email_address" property="emailAddress" jdbcType="VARCHAR"/>
+        <result column="remark" property="remark" jdbcType="VARCHAR"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, gmt_create, gmt_modified, creator, modifier, email_address, remark
+    </sql>
+
+    <select id="selectByEmailAddress" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM email_blacklist
+        WHERE deleted_id = 0
+          AND email_address = #{emailAddress}
+        LIMIT 1
+    </select>
+
+    <select id="selectByPrimaryKey" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM email_blacklist
+        WHERE deleted_id = 0
+          AND id = #{id}
+    </select>
+
+    <select id="selectByPage" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM email_blacklist
+        WHERE deleted_id = 0
+        <if test="emailAddress != null and emailAddress != ''">
+            AND email_address LIKE CONCAT('%', #{emailAddress}, '%')
+        </if>
+        ORDER BY gmt_create DESC, id DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <select id="countByEmailAddress" resultType="long">
+        SELECT COUNT(1)
+        FROM email_blacklist
+        WHERE deleted_id = 0
+        <if test="emailAddress != null and emailAddress != ''">
+            AND email_address LIKE CONCAT('%', #{emailAddress}, '%')
+        </if>
+    </select>
+
+    <insert id="insert" parameterType="{{basePackage}}.infrastructure.blacklist.mybatis.model.EmailBlacklistDO"
+            useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO email_blacklist (
+            gmt_create, gmt_modified, creator, modifier, deleted_id, email_address, remark
+        ) VALUES (
+            NOW(), NOW(), #{creator}, #{modifier}, 0, #{emailAddress}, #{remark}
+        )
+    </insert>
+
+    <insert id="insertBatch" parameterType="list" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO email_blacklist (
+            gmt_create, gmt_modified, creator, modifier, deleted_id, email_address, remark
+        ) VALUES
+        <foreach collection="records" item="item" separator=",">
+            (NOW(), NOW(), #{item.creator}, #{item.modifier}, 0, #{item.emailAddress}, #{item.remark})
+        </foreach>
+    </insert>
+
+    <update id="logicalDelete">
+        UPDATE email_blacklist
+        SET gmt_modified = NOW(),
+            modifier     = #{modifier},
+            deleted_id   = id
+        WHERE id = #{id}
+    </update>
+
+</mapper>

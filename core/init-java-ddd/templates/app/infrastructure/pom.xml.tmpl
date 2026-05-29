@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>{{groupId}}</groupId>
+        <artifactId>{{appName}}-parent</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+    <artifactId>{{appName}}-infrastructure</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+
+    <dependencies>
+        <!-- SOFA starter -->
+        <dependency>
+            <groupId>com.alipay.sofa</groupId>
+            <artifactId>ddcs-alipay-sofa-boot-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.alipay.sofa</groupId>
+            <artifactId>dds-alipay-sofa-boot-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.alipay.sofa</groupId>
+            <artifactId>mist-alipay-sofa-boot-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.alipay.sofa</groupId>
+            <artifactId>mq-alipay-sofa-boot-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.alipay.sofa</groupId>
+            <artifactId>scheduler-alipay-sofa-boot-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.alipay.zdal</groupId>
+            <artifactId>zdal-orm-annotation</artifactId>
+        </dependency>
+        <!-- 内部模块 -->
+        <dependency>
+            <groupId>{{groupId}}</groupId>
+            <artifactId>{{appName}}-domain</artifactId>
+        </dependency>
+        <!-- MyBatis -->
+        <dependency>
+            <groupId>org.mybatis.spring.boot</groupId>
+            <artifactId>mybatis-spring-boot-starter</artifactId>
+        </dependency>
+        <!-- mycm 公共组件 -->
+        <dependency>
+            <groupId>com.mycm.common</groupId>
+            <artifactId>mycm-common</artifactId>
+        </dependency>
+        <!-- MycmSysException 祖先类所在 jar,mycm-common 未传递,显式补 -->
+        <dependency>
+            <groupId>com.alipay.common</groupId>
+            <artifactId>alipay-common-error</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.mycm.common</groupId>
+            <artifactId>mycm-component</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.mycm.common</groupId>
+            <artifactId>mycm-command</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.mycm.common</groupId>
+            <artifactId>mycm-sequence</artifactId>
+        </dependency>
+        <!-- MapStruct (DO <-> Domain 转换) -->
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct-processor</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <!-- Lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+</project>

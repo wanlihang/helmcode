@@ -1,0 +1,119 @@
+// HelmCode Demo slice — safe to delete after onboarding
+package {{basePackage}}.infrastructure.blacklist.repository;
+
+import {{basePackage}}.domain.blacklist.model.EmailBlacklist;
+import {{basePackage}}.domain.blacklist.query.EmailBlacklistQuery;
+import {{basePackage}}.domain.blacklist.repository.EmailBlacklistRepository;
+import {{basePackage}}.infrastructure.blacklist.convert.EmailBlacklistConvert;
+import {{basePackage}}.infrastructure.blacklist.mybatis.mapper.EmailBlacklistDOMapper;
+import {{basePackage}}.infrastructure.blacklist.mybatis.model.EmailBlacklistDO;
+import com.mycm.common.model.exception.ErrorCodeEnum;
+import com.mycm.common.model.exception.MycmBizException;
+import com.mycm.common.model.exception.MycmSysException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+
+/**
+ * 邮箱黑名单仓储实现。
+ *
+ * 规范要点:
+ *  1. Mapper 调用统一 try/catch,业务异常重新抛 MycmSysException(ErrorCodeEnum.SYSTEM_INNER_ERROR);
+ *  2. 校验失败抛 MycmBizException(...DATA_VALIDATE_ERROR),不混淆;
+ *  3. 转换全程走 MapStruct,不允许任何 BeanUtils.copyProperties。
+ */
+@Repository
+public class EmailBlacklistRepositoryImpl implements EmailBlacklistRepository {
+
+    private static final Logger log = LoggerFactory.getLogger(EmailBlacklistRepositoryImpl.class);
+
+    @Autowired
+    private EmailBlacklistDOMapper emailBlacklistDOMapper;
+
+    @Override
+    public EmailBlacklist findByEmailAddress(String emailAddress) {
+        try {
+            EmailBlacklistDO doObj = emailBlacklistDOMapper.selectByEmailAddress(emailAddress);
+            return EmailBlacklistConvert.INSTANCE.toDomain(doObj);
+        } catch (Exception e) {
+            log.error("findByEmailAddress failed, emailAddress={}", emailAddress, e);
+            throw new MycmSysException(ErrorCodeEnum.SYSTEM_INNER_ERROR, "查询邮箱黑名单失败", e);
+        }
+    }
+
+    @Override
+    public boolean isBlacklisted(String email) {
+        try {
+            return emailBlacklistDOMapper.selectByEmailAddress(email) != null;
+        } catch (Exception e) {
+            log.error("isBlacklisted failed, email={}", email, e);
+            throw new MycmSysException(ErrorCodeEnum.SYSTEM_INNER_ERROR, "检查邮箱黑名单失败", e);
+        }
+    }
+
+    @Override
+    public EmailBlacklist findById(Long id) {
+        try {
+            EmailBlacklistDO doObj = emailBlacklistDOMapper.selectByPrimaryKey(id);
+            return EmailBlacklistConvert.INSTANCE.toDomain(doObj);
+        } catch (Exception e) {
+            log.error("findById failed, id={}", id, e);
+            throw new MycmSysException(ErrorCodeEnum.SYSTEM_INNER_ERROR, "查询邮箱黑名单失败", e);
+        }
+    }
+
+    @Override
+    public List<EmailBlacklist> findByQuery(EmailBlacklistQuery query) {
+        try {
+            List<EmailBlacklistDO> doList = emailBlacklistDOMapper.selectByPage(
+                    query.getOffset(), query.getPageSize(), query.getEmailAddress());
+            return EmailBlacklistConvert.INSTANCE.toDomainList(doList);
+        } catch (Exception e) {
+            log.error("findByQuery failed, pageNum={}, pageSize={}",
+                    query.getPageNum(), query.getPageSize(), e);
+            throw new MycmSysException(ErrorCodeEnum.SYSTEM_INNER_ERROR, "分页查询邮箱黑名单失败", e);
+        }
+    }
+
+    @Override
+    public long countByQuery(EmailBlacklistQuery query) {
+        try {
+            return emailBlacklistDOMapper.countByEmailAddress(query.getEmailAddress());
+        } catch (Exception e) {
+            log.error("countByQuery failed", e);
+            throw new MycmSysException(ErrorCodeEnum.SYSTEM_INNER_ERROR, "统计邮箱黑名单数量失败", e);
+        }
+    }
+
+    @Override
+    public void save(EmailBlacklist blacklist) {
+        try {
+            if (!blacklist.validate()) {
+                throw new MycmBizException(ErrorCodeEnum.DATA_VALIDATE_ERROR, "邮箱黑名单数据校验失败");
+            }
+            EmailBlacklistDO blacklistDO = EmailBlacklistConvert.INSTANCE.toDO(blacklist);
+            int rows = emailBlacklistDOMapper.insert(blacklistDO);
+            if (rows <= 0) {
+                throw new MycmBizException(ErrorCodeEnum.BIZ_ERROR, "插入邮箱黑名单失败");
+            }
+        } catch (MycmBizException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("save failed, emailAddress={}", blacklist.getEmailAddress(), e);
+            throw new MycmSysException(ErrorCodeEnum.SYSTEM_INNER_ERROR, "保存邮箱黑名单失败", e);
+        }
+    }
+
+    @Override
+    public int remove(Long id, String operator) {
+        try {
+            return emailBlacklistDOMapper.logicalDelete(id, operator);
+        } catch (Exception e) {
+            log.error("remove failed, id={}", id, e);
+            throw new MycmSysException(ErrorCodeEnum.SYSTEM_INNER_ERROR, "删除邮箱黑名单失败", e);
+        }
+    }
+}

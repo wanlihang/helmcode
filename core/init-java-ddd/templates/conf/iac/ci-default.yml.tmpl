@@ -1,0 +1,19 @@
+version: 1.0
+configs:
+  # 配置格式参考: https://yuque.antfin-inc.com/vlu1sb/yl4rpk/abxg9l
+  # Maven 执行参数
+  privateRepo: false
+  autoPom: true
+  coverageExclusions: "**/test/**,**/dal/**,**/ibatis/**,**/mybatis/**,**/model/**,**/enums/**,**/enum/**,**/log/**,**/constants/**,**/vo/**,**/*Controller*"
+  parallelCount: 1
+  sonarExclusions: "**/test/**,**/mock/**,**/dal/**,**/model/**,**/dto/**,**/enum/**,**/enums/**"
+  encoding: UTF-8
+  enableOracle: false
+  jdkVersion: {{javaVersion}}
+  jacocoPowerMock: false
+  skipCITest:
+    unitTest: false
+    integrationTest: false
+  aciTestCaseScope:
+    unitTest: true
+    integrationTest: true

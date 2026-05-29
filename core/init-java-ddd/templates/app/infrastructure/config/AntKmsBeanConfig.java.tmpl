@@ -1,0 +1,44 @@
+package {{basePackage}}.infrastructure.config;
+
+import com.alipay.mist.sdk.MistClient;
+import com.alipay.mist.sdk.MistSDKAutoConfig;
+import com.alipay.mist.sdk.MistSDKConfig;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+/**
+ * MIST / AntKMS 客户端 Bean 配置。
+ *  - tenant / appName / mode 来源于 application*.properties 中的 snake_case key:
+ *      mist_tenant         (来自 MIST 平台)
+ *      antkms_app_name     (一般等于 {{appName}})
+ *      mist_antkms_env     (dev/test/sim/prod,由 profile 覆盖)
+ *  - 注意:这三个值是「按租户绑定的真实凭据所在标识」,请不要硬编码到 properties,
+ *          要么注入到运维平台,要么走环境变量,具体见 standards 章节。
+ */
+@Configuration
+public class AntKmsBeanConfig {
+
+    @Value("${mist_tenant}")
+    private String tenant;
+
+    @Value("${antkms_app_name}")
+    private String appName;
+
+    @Value("${mist_antkms_env}")
+    private String mode;
+
+    @Bean("mistConfig")
+    MistSDKAutoConfig mistConfig() {
+        MistSDKAutoConfig mistConfig = new MistSDKAutoConfig();
+        mistConfig.setTenant(tenant);
+        mistConfig.setAppName(appName);
+        mistConfig.setMode(mode);
+        return mistConfig;
+    }
+
+    @Bean
+    public MistClient mistClient(MistSDKConfig mistSDKConfig) {
+        return new MistClient(mistSDKConfig);
+    }
+}

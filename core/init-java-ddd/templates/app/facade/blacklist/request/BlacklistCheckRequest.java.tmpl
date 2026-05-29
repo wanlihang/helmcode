@@ -1,0 +1,24 @@
+// HelmCode Demo slice — safe to delete after onboarding
+package {{basePackage}}.facade.blacklist.request;
+
+import com.mycm.common.model.base.BaseRequest;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+
+import javax.validation.constraints.NotBlank;
+import java.io.Serial;
+
+/**
+ * 黑名单检查请求。
+ */
+@EqualsAndHashCode(callSuper = true)
+@Data
+public class BlacklistCheckRequest extends BaseRequest {
+
+    @Serial
+    private static final long serialVersionUID = 1L;
+
+    /** 邮箱地址 */
+    @NotBlank(message = "邮箱地址不能为空")
+    private String email;
+}

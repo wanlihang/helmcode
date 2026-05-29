@@ -1,0 +1,32 @@
+// HelmCode Demo slice — safe to delete after onboarding
+package {{basePackage}}.infrastructure.blacklist.convert;
+
+import {{basePackage}}.domain.blacklist.model.EmailBlacklist;
+import {{basePackage}}.infrastructure.blacklist.mybatis.model.EmailBlacklistDO;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.factory.Mappers;
+
+import java.util.List;
+
+/**
+ * 邮箱黑名单 Domain <-> DO 转换器(MapStruct)。
+ *  - 新增时 id / gmtCreate / gmtModified 留给 DB 自动生成,这里 ignore;
+ *  - creator 用 modifier 的值兜底(首次入库时即创建者)。
+ */
+@Mapper
+public interface EmailBlacklistConvert {
+
+    EmailBlacklistConvert INSTANCE = Mappers.getMapper(EmailBlacklistConvert.class);
+
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "gmtCreate", ignore = true)
+    @Mapping(target = "gmtModified", ignore = true)
+    @Mapping(target = "creator", source = "modifier")
+    @Mapping(target = "modifier", source = "modifier")
+    EmailBlacklistDO toDO(EmailBlacklist domain);
+
+    EmailBlacklist toDomain(EmailBlacklistDO dataObj);
+
+    List<EmailBlacklist> toDomainList(List<EmailBlacklistDO> doList);
+}

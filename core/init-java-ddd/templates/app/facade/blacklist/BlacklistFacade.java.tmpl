@@ -1,0 +1,45 @@
+// HelmCode Demo slice — safe to delete after onboarding
+package {{basePackage}}.facade.blacklist;
+
+import {{basePackage}}.facade.blacklist.command.BlacklistAddCommand;
+import {{basePackage}}.facade.blacklist.command.BlacklistBatchAddCommand;
+import {{basePackage}}.facade.blacklist.command.BlacklistRemoveCommand;
+import {{basePackage}}.facade.blacklist.request.BlacklistCheckRequest;
+import {{basePackage}}.facade.blacklist.request.BlacklistQueryRequest;
+import {{basePackage}}.facade.blacklist.vo.BlacklistVO;
+import com.mycm.common.model.base.Result;
+import com.mycm.common.model.paging.Paginator;
+
+import javax.validation.Valid;
+
+/**
+ * 邮箱黑名单 Facade(对外契约)。
+ * 实现位于 application 模块,通过 @RpcProvider 暴露为 SOFA RPC。
+ */
+public interface BlacklistFacade {
+
+    /**
+     * 检查邮箱是否在黑名单中。
+     */
+    Result<Boolean> checkEmail(@Valid BlacklistCheckRequest request);
+
+    /**
+     * 添加单个黑名单。
+     */
+    Result<Void> addBlacklist(@Valid BlacklistAddCommand command);
+
+    /**
+     * 移除黑名单(逻辑删除)。
+     */
+    Result<Void> removeBlacklist(@Valid BlacklistRemoveCommand command);
+
+    /**
+     * 分页查询黑名单(管理后台用)。
+     */
+    Result<Paginator<BlacklistVO>> listByPage(@Valid BlacklistQueryRequest request);
+
+    /**
+     * 批量添加黑名单(单事务)。
+     */
+    Result<Void> batchAddBlacklist(@Valid BlacklistBatchAddCommand command);
+}
