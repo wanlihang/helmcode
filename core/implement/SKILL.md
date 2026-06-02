@@ -120,9 +120,24 @@ tags: [implement, 代码生成, 判断日志, goal-worker]
 
 对行为契约中的每个 domain：
 
-1. **生成代码**（对照修改清单逐项完成）
-2. **遗漏自查**：所有修改清单项是否已全部标记 `[x]`
-3. **产出判断日志**（参见 `references/judgment-log-format.md` + `references/judgment-heuristics.md`）
+1. **生成业务代码**(对照修改清单逐项完成)
+2. **同步生成测试代码(硬步骤,不可省)**:
+   - 每个新增/修改的 Facade 方法 → 一组 ACTS yaml 用例(case01 正常 / case02 参数校验 /
+     case03 依赖失败 / case04 业务错误,详见 `patterns/test.md`)
+   - 每个新增的 Domain Service / Handler → 至少 1 个 JUnit + Mockito 单测
+   - 每个新增的 Strategy 实现 → 至少 1 个单测覆盖路由分支
+   - **配套结构**:测试与业务代码同 turn 提交,**不允许**业务代码已生成但测试为空
+3. **遗漏自查**:
+   - [ ] 所有修改清单项已标记 `[x]`
+   - [ ] **业务代码每新增/修改一个公开方法,对应测试用例存在**(grep `Test\.java$` / `caseObjs\.yaml$` 数量 > 0)
+   - [ ] 测试覆盖正常路径 + 至少 1 个异常路径
+4. **产出判断日志**(参见 `references/judgment-log-format.md` + `references/judgment-heuristics.md`)
+
+**为什么测试是硬步骤(不是可选)**:
+- verify 的 `Tests run: N` 要求 **N ≥ 1**(详见 `verify/SKILL.md` §2)
+- `Tests run: 0, Failures: 0` 会被 verify 标记为"❌ 测试不存在",Haiku 评估器判 goal 未达成
+- 没测试的"通过"是假阳性——这次能编过不代表下次重构能编过
+- 早期跳过测试,后期补测试的成本远高于同 turn 写;且补测试时 contract 已淡出上下文
 
 **⚠️ 项处理策略（与 v1 的关键区别）**：
 
@@ -140,7 +155,8 @@ tags: [implement, 代码生成, 判断日志, goal-worker]
 每个 domain 生成完毕后，运行验证：
 
 1. **编译检查**：运行项目编译命令，确认零编译错误
-2. **测试验证**：运行相关 domain 的测试，确认测试通过
+2. **测试验证**：运行相关 domain 的测试,确认 `Tests run: N` 中 **N ≥ 1** 且 `Failures: 0`
+   (N = 0 视为失败,需下一 turn 先补测试,详见 `verify/SKILL.md` §2)
 3. **字段同步检查**：运行 `node .claude/scripts/verify-field-sync.mjs --contract .claude/contracts/{F-ID}.md --project .`（如果脚本存在）
 4. **架构合规检查**：运行 `node .claude/scripts/verify-arch-rules.mjs --project .`（如果脚本存在）
 

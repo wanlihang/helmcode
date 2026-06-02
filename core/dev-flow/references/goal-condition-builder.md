@@ -17,20 +17,24 @@
 | 类别 | 验证方式 | 会话中出现的信号 |
 |------|---------|----------------|
 | 编译类 | `mvn compile` / `npm run build` | "BUILD SUCCESS" / exit code 0 |
-| 测试类 | `mvn test` / `npm test` / `mvn acts:test` | "Tests run: N, Failures: 0" |
+| 测试类 | `mvn test` / `npm test` / `mvn acts:test` | "Tests run: N (**N ≥ 1**), Failures: 0" |
 | 字段同步 | `node .claude/scripts/verify-field-sync.mjs` | 脚本输出全部 ✅ |
 | 架构合规 | `node .claude/scripts/verify-arch-rules.mjs` | 脚本输出全部 ✅ |
 | 功能验证 | 运行测试并检查断言 | 测试通过 + 特定断言输出 |
-| 自定义命令 | 项目特有的验证命令（如 `mvn acts:test`、`curl` 健康检查） | 命令输出满足条件 |
+| 自定义命令 | 项目特有的验证命令(如 `mvn acts:test`、`curl` 健康检查) | 命令输出满足条件 |
+
+> **测试类硬约束**:`Tests run: 0, Failures: 0` 视为失败(没测试的"通过"是假阳性)。
+> goal 条件里必须显式写 `Tests run ≥ 1`,否则 Haiku 评估器会把"零测试"误判为达成。
+> 详见 `core/verify/SKILL.md` §2。
 
 ### Step 2: 合并为 goal 条件模板
 
 ```
-/goal 行为契约 {F-ID} 的所有验收条件满足：
-- 编译零错误（mvn compile 输出 BUILD SUCCESS）
-- 测试全绿（mvn test 输出 Failures: 0，覆盖 {domain} 相关测试）
-- 架构合规（verify-arch-rules 输出全部 ✅）
-- 字段同步（verify-field-sync 输出全部 ✅）
+/goal 行为契约 {F-ID} 的所有验收条件满足:
+- 编译零错误(mvn compile 输出 BUILD SUCCESS)
+- 测试全绿且非空(mvn test 输出 Tests run: N ≥ 1, Failures: 0,覆盖 {domain} 相关测试)
+- 架构合规(verify-arch-rules 输出全部 ✅)
+- 字段同步(verify-field-sync 输出全部 ✅)
 - AC-001~AC-00{N} 对应的测试断言全部通过
 完成后输出验收条件逐条检查结果。
 ```
@@ -51,26 +55,30 @@
 ### 简单 Feature
 
 ```
-/goal F001-recon-task 编译零错误，mvn test 全部通过，
-verify-field-sync 全部 ✅，完成后展示验收条件检查结果
+/goal F001-recon-task 编译零错误,mvn test 输出 Tests run: N ≥ 1, Failures: 0,
+verify-field-sync 全部 ✅,完成后展示验收条件检查结果
 ```
 
 ### 标准 Feature
 
 ```
-/goal F002-daily-report 编译零错误，mvn test 全部通过，
-verify-field-sync 全部 ✅，verify-arch-rules 全部 ✅，
+/goal F002-daily-report 编译零错误,mvn test 输出 Tests run: N ≥ 1, Failures: 0,
+verify-field-sync 全部 ✅,verify-arch-rules 全部 ✅,
 完成后展示验收条件逐条检查结果
 ```
 
-### 复杂 Feature（含集成验证）
+### 复杂 Feature(含集成验证)
 
 ```
-/goal F003-payment 编译零错误，mvn test 全部通过，
-verify-field-sync 全部 ✅，verify-arch-rules 全部 ✅，
-支付创建和回调的集成测试通过，
+/goal F003-payment 编译零错误,mvn test 输出 Tests run: N ≥ 1, Failures: 0,
+verify-field-sync 全部 ✅,verify-arch-rules 全部 ✅,
+支付创建和回调的集成测试通过,
 完成后展示验收条件逐条检查结果
 ```
+
+> 三个示例都显式写 `Tests run: N ≥ 1` — 这是关键反假阳性约束。
+> 没有这一条,implement 跳过测试生成时 Haiku 会把 `Tests run: 0, Failures: 0`
+> 误判为通过,goal achieved 但实际代码无任何测试覆盖。
 
 ## 注意事项
 

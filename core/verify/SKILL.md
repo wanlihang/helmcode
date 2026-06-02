@@ -59,9 +59,21 @@ mvn test -pl {module} -Dtest={Domain}*Test 2>&1
 npm test 2>&1
 ```
 
-**会话输出要求**：
-- 通过：输出 "✅ 测试通过：Tests run: {N}, Failures: 0"
-- 失败：输出 "❌ 测试失败" + 失败的测试名和错误信息
+**会话输出要求(N ≥ 1 是硬约束)**：
+- **通过**:输出 "✅ 测试通过:Tests run: {N}, Failures: 0"——**N 必须 ≥ 1**
+- **失败 — 测试运行有错**:输出 "❌ 测试失败" + 失败的测试名和错误信息
+- **失败 — 测试不存在**:`Tests run: 0` 即便 `Failures: 0`,**也视为失败**,
+  输出 "❌ 测试不存在:本次 feature 未生成任何测试,Tests run: 0。
+  下一 turn 必须先按 patterns/test.md 为新增 Facade 方法 / Domain Service / Handler
+  生成对应测试用例(ACTS yaml 或 JUnit 单测),再重跑此检查"
+
+**为什么硬约束 N ≥ 1**:
+没有测试的"通过"是假阳性——`Tests run: 0, Failures: 0` 在文本匹配下会让 Haiku
+评估器误判 goal achieved,代码上线时一旦回归就没人接得住。强约束 N ≥ 1 把
+"测试生成"从可选项转为闭环硬步骤。
+
+> **跨项目/类型例外**:纯文档/配置类 PR(不含 .java/.ts/.py 业务代码变更)可在
+> goal 条件里显式排除测试验证(`--skip-tests`);其他场景 N ≥ 1 不可豁免。
 
 ### 3. 字段同步检查
 
@@ -113,12 +125,16 @@ node .claude/scripts/verify-arch-rules.mjs --project . [--domain {domain}] 2>&1
 | 检查项 | 结果 |
 |--------|------|
 | 编译 | ✅ BUILD SUCCESS |
-| 测试 | ✅ Tests run: 12, Failures: 0 |
+| 测试 | ✅ Tests run: 12 (N ≥ 1), Failures: 0 |
 | 字段同步 | ✅ 全部通过 |
 | 架构合规 | ✅ 全部通过 |
 | 验收条件 | ✅ AC-001~AC-004 全部通过 |
 
 整体结论：{F-ID} 所有验证通过 / {N} 项未通过，需要修复
+
+> 测试一行**必须**显式写 `Tests run: {N} (N ≥ 1)` ——`Tests run: 0` 必须在整体
+> 结论里标"❌ 测试不存在,本次 feature 未生成任何测试",Haiku 评估器据此判定
+> goal 未达成,下一 turn 由 implement 补测试。
 ```
 
 ## 前置条件
