@@ -10,6 +10,21 @@
 - [ ] 依赖方向正确：bootstrap → facade → application → domain
 - [ ] Repository 接口在 domain 层，实现在 infrastructure 层
 
+## A0. 包内聚（按业务功能点 `{context}` 分包，硬约束，直接打回）
+
+> 详见 standards.md §0。一条业务需求,通过包路径 10 秒内定位到所有相关代码。
+
+- [ ] 同一功能点的 Facade + Acceptor + Handler + Action + Context **必须在同一 `{context}` 包下**
+      （如 `application/mapping/{acceptor,handler,action,context}/`）
+- [ ] 严禁水平分包：`application/handler/`、`application/action/`、`application/acceptor/` 各自独立顶层 → 直接打回
+- [ ] `application/decider/`、`application/shared/handler/` 只放跨功能点共享代码；
+      若某个 Action/Handler 仅一个 `{context}` 用，必须下沉到该 `{context}` 包
+- [ ] `infrastructure/<context>/` 必须与 `domain.<context>` / `application.<context>` 命名一一对应
+      （Repository/Mapper/DO/Convert 同一功能点收敛在 `infrastructure.<context>` 下）
+- [ ] `facade/<context>/model/{command,query,vo}/` 与 `application/<context>/` 命名对齐
+- [ ] 严禁发明项目专有元数据（如 `@HelmFlow`、`@StageStep` 等业务编排注解）；
+      `doHandle()` 内"代码顺序即执行顺序"是唯一编排方式
+
 ## B. Lombok 使用
 
 - [ ] Entity 使用 @Getter/@Setter，不使用 @Data

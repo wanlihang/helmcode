@@ -4,6 +4,61 @@
 > 本标准提供完整的默认规范，可直接用于新项目。
 > 已有项目安装时，`helmcode install` 会扫描代码检测差异，生成 `.claude/standards/project-conventions.md` 覆盖默认值。
 
+## 0. 核心原则:按业务功能点 `{context}` 内聚
+
+> **AI coding 时代,以业务功能划分才是最内聚的——而不是按技术分层散落。**
+> 一条业务需求,通过包路径 10 秒内定位到所有相关代码;改一个功能,不需要在
+> `handler/`、`action/`、`acceptor/` 三个水平包之间跳来跳去。
+
+### 0.1 包结构铁律
+
+同一功能点的 **Facade + Acceptor + Handler + Action + Context** 必须收敛在同一 `{context}` 包下:
+
+```
+✅ 正确(按业务功能内聚)
+application/mapping/acceptor/ProdMappingAcceptor.java
+application/mapping/handler/ProductMappingSubmitHandler.java
+application/mapping/action/SavePdMappingAction.java
+application/mapping/context/ProdMappingContext.java
+
+❌ 错误(按技术关注水平分包)
+application/acceptor/ProdMappingAcceptor.java
+application/handler/ProductMappingSubmitHandler.java
+application/action/SavePdMappingAction.java
+```
+
+完整包结构约定见 `package-structure.md`(随 init-java-ddd skill 安装到
+`.claude/skills/init-java-ddd/references/package-structure.md`,源码仓库位于
+`core/init-java-ddd/references/package-structure.md`)。
+
+### 0.2 跨功能点共享才能放顶层
+
+只有满足以下条件之一,才能放在 `{module}/` 顶层(不带 `{context}`):
+- 被两个以上 `{context}` 引用(如 `application/decider/`、`application/shared/handler/`)
+- 技术基础设施,不属于业务(如 `infrastructure/config/`、`infrastructure/log/`、`infrastructure/messaging/`)
+- 通用查询/异常转换(如 `facade/shared/`)
+
+### 0.3 编排路径决策:Service vs Handler+Action
+
+判定按从上往下,**第一个命中**即定:
+
+| 触发条件(任一命中) | 走法 | 路径 |
+|---|---|---|
+| 含审批回调 / 状态机分支(PASS/REJECT/CANCEL) | StatefulHandlerTemplate | route() + onPass/onReject/onCancel |
+| ≥4 步业务动作,**或**需要细粒度事务边界控制(单 Action 单事务) | Handler + Action | FacadeImpl → BizTemplate → Acceptor → Handler.execute(ctx) |
+| ≤3 步且整体一个事务(校验→调服务→持久化) | Application Service | FacadeImpl → BizTemplate → Service |
+
+> **判定原则**:动作步数从契约的"业务规则/流程"段计数,一次 DB 写入或一次外部调用 = 一步。
+> 4-5 步落进"多步编排"——不是模糊地带。
+
+详见 [`patterns/handler.md`](patterns/handler.md) 与 [`patterns/acceptor.md`](patterns/acceptor.md)。
+
+### 0.4 零项目专有元数据
+
+- 不发明 `@HelmFlow` / `@StageStep` 之类的自定义业务注解
+- 不引入 flow XML 编排引擎(`代码顺序即执行顺序`,doHandle() 里写什么就执行什么)
+- 不引入"AI 友好"的额外插件——Spring/SOFA/Lombok/MapStruct 已足够
+
 ## 1. 分层与依赖
 
 - bootstrap → facade → application → domain，infrastructure → domain（依赖倒置）
