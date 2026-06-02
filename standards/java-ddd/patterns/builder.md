@@ -7,8 +7,8 @@
 ```java
 package {PACKAGE}.domain.{MODULE}.model;
 
-import {PACKAGE}.common.model.exception.MycmBizException;
-import {PACKAGE}.common.model.exception.ErrorCodeEnum;
+import com.mycm.common.model.exception.MycmBizException;
+import com.mycm.common.model.exception.ErrorCodeEnum;
 import org.springframework.util.Assert;
 
 /**
@@ -167,8 +167,8 @@ import {PACKAGE}.domain.{MODULE}.model.{Business}Amount;
 import {PACKAGE}.domain.{MODULE}.repository.{Business}Repository;
 import {PACKAGE}.domain.{MODULE}.model.{Business}StatusEnum;
 import {PACKAGE}.facade.{MODULE}.model.command.{Business}CreateCommand;
-import {PACKAGE}.common.model.exception.MycmBizException;
-import {PACKAGE}.common.model.exception.ErrorCodeEnum;
+import com.mycm.common.model.exception.MycmBizException;
+import com.mycm.common.model.exception.ErrorCodeEnum;
 import org.springframework.util.Assert;
 
 import java.util.List;

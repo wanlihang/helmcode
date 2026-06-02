@@ -14,8 +14,8 @@ import {PACKAGE}.facade.{MODULE}.model.command.{Business}CreateCommand;
 import {PACKAGE}.facade.{MODULE}.model.command.{Business}UpdateCommand;
 import {PACKAGE}.facade.{MODULE}.model.query.{Business}Query;
 import {PACKAGE}.facade.{MODULE}.model.vo.{Business}VO;
-import {PACKAGE}.common.model.Result;
-import {PACKAGE}.common.model.Paginator;
+import com.mycm.common.model.Result;
+import com.mycm.common.model.Paginator;
 
 public interface {Business}ManageFacade {
 
@@ -32,8 +32,8 @@ package {PACKAGE}.facade.{MODULE};
 
 import {PACKAGE}.facade.{MODULE}.model.query.{Business}Query;
 import {PACKAGE}.facade.{MODULE}.model.vo.{Business}VO;
-import {PACKAGE}.common.model.Result;
-import {PACKAGE}.common.model.Paginator;
+import com.mycm.common.model.Result;
+import com.mycm.common.model.Paginator;
 
 public interface {Business}QueryFacade {
 

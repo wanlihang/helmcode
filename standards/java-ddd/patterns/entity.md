@@ -9,8 +9,8 @@ package {PACKAGE}.domain.{MODULE}.model;
 
 import lombok.Getter;
 import lombok.Setter;
-import {PACKAGE}.common.model.exception.MycmBizException;
-import {PACKAGE}.common.model.exception.ErrorCodeEnum;
+import com.mycm.common.model.exception.MycmBizException;
+import com.mycm.common.model.exception.ErrorCodeEnum;
 import org.springframework.util.Assert;
 
 /**

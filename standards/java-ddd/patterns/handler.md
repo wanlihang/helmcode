@@ -74,7 +74,7 @@ package {PACKAGE}.application.shared.handler;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import {PACKAGE}.common.util.LoggerUtil;
+import com.mycm.common.util.LoggerUtil;
 
 /**
  * 操作日志 Action。HandlerTemplate 基类在 execute() 末尾自动追加,
@@ -97,9 +97,9 @@ public class OperateLogAction implements Action<HandlerContext> {
 ```java
 package {PACKAGE}.application.shared.handler;
 
-import {PACKAGE}.common.model.exception.MycmBizException;
-import {PACKAGE}.common.model.exception.ErrorCodeEnum;
-import {PACKAGE}.common.util.LoggerUtil;
+import com.mycm.common.model.exception.MycmBizException;
+import com.mycm.common.model.exception.ErrorCodeEnum;
+import com.mycm.common.util.LoggerUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -319,8 +319,8 @@ package {PACKAGE}.application.shared.handler;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
-import {PACKAGE}.common.model.exception.MycmBizException;
-import {PACKAGE}.common.model.exception.ErrorCodeEnum;
+import com.mycm.common.model.exception.MycmBizException;
+import com.mycm.common.model.exception.ErrorCodeEnum;
 
 /**
  * 状态机处理模版基类。

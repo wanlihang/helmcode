@@ -11,7 +11,7 @@ import {PACKAGE}.facade.{MODULE}.model.command.{Business}CreateCommand;
 import {PACKAGE}.facade.{MODULE}.model.command.{Business}UpdateCommand;
 import {PACKAGE}.facade.{MODULE}.model.query.{Business}Query;
 import {PACKAGE}.facade.{MODULE}.model.vo.{Business}VO;
-import {PACKAGE}.common.model.Paginator;
+import com.mycm.common.model.Paginator;
 
 /**
  * {Business} application service interface.
@@ -40,7 +40,7 @@ package {PACKAGE}.application.{MODULE}.service;
 
 import {PACKAGE}.facade.{MODULE}.model.query.{Business}Query;
 import {PACKAGE}.facade.{MODULE}.model.vo.{Business}VO;
-import {PACKAGE}.common.model.Paginator;
+import com.mycm.common.model.Paginator;
 
 /**
  * {Business} query service interface.
@@ -78,9 +78,9 @@ import {PACKAGE}.domain.{MODULE}.repository.{Business}Repository;
 import {PACKAGE}.facade.{MODULE}.model.command.{Business}CreateCommand;
 import {PACKAGE}.facade.{MODULE}.model.command.{Business}UpdateCommand;
 import {PACKAGE}.facade.{MODULE}.model.vo.{Business}VO;
-import {PACKAGE}.common.model.exception.MycmBizException;
-import {PACKAGE}.common.model.exception.ErrorCodeEnum;
-import {PACKAGE}.common.util.LoggerUtil;
+import com.mycm.common.model.exception.MycmBizException;
+import com.mycm.common.model.exception.ErrorCodeEnum;
+import com.mycm.common.util.LoggerUtil;
 
 /**
  * {Business} manage service implementation.
@@ -212,9 +212,9 @@ import {PACKAGE}.domain.{MODULE}.model.{Business}Aggregator;
 import {PACKAGE}.domain.{MODULE}.repository.{Business}Repository;
 import {PACKAGE}.facade.{MODULE}.model.query.{Business}Query;
 import {PACKAGE}.facade.{MODULE}.model.vo.{Business}VO;
-import {PACKAGE}.common.model.Paginator;
-import {PACKAGE}.common.model.exception.MycmBizException;
-import {PACKAGE}.common.model.exception.ErrorCodeEnum;
+import com.mycm.common.model.Paginator;
+import com.mycm.common.model.exception.MycmBizException;
+import com.mycm.common.model.exception.ErrorCodeEnum;
 
 /**
  * {Business} query service implementation.
@@ -273,9 +273,9 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import {PACKAGE}.domain.{MODULE}.model.{Business}StatusEnum;
 import {PACKAGE}.domain.{MODULE}.repository.{Business}Repository;
-import {PACKAGE}.common.util.LoggerUtil;
-import {PACKAGE}.common.model.exception.MycmBizException;
-import {PACKAGE}.common.model.exception.ErrorCodeEnum;
+import com.mycm.common.util.LoggerUtil;
+import com.mycm.common.model.exception.MycmBizException;
+import com.mycm.common.model.exception.ErrorCodeEnum;
 
 import java.util.List;
 

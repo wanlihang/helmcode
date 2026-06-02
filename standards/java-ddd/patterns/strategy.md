@@ -163,8 +163,8 @@ package {PACKAGE}.domain.{MODULE}.strategy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import {PACKAGE}.common.model.exception.MycmBizException;
-import {PACKAGE}.common.model.exception.ErrorCodeEnum;
+import com.mycm.common.model.exception.MycmBizException;
+import com.mycm.common.model.exception.ErrorCodeEnum;
 import {PACKAGE}.domain.{MODULE}.strategy.impl.*;
 
 import javax.annotation.PostConstruct;

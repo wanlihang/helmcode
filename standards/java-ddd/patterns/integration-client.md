@@ -31,7 +31,7 @@ public class IntegrationConfig {
 ```java
 package {PACKAGE}.infrastructure.integration.{MODULE};
 
-import {PACKAGE}.common.model.Result;
+import com.mycm.common.model.Result;
 import {PACKAGE}.facade.external.model.{ExternalDTO};
 
 /**
@@ -57,11 +57,11 @@ public interface {ExternalService}FacadeClient {
 ```java
 package {PACKAGE}.infrastructure.integration.{MODULE}.impl;
 
-import {PACKAGE}.common.model.Result;
-import {PACKAGE}.common.model.exception.MycmBizException;
-import {PACKAGE}.common.model.exception.ErrorCodeEnum;
-import {PACKAGE}.common.component.log.annotation.SalLog;
-import {PACKAGE}.common.model.constants.LoggerDef;
+import com.mycm.common.model.Result;
+import com.mycm.common.model.exception.MycmBizException;
+import com.mycm.common.model.exception.ErrorCodeEnum;
+import com.mycm.common.component.log.annotation.SalLog;
+import com.mycm.common.model.constants.LoggerDef;
 import {PACKAGE}.facade.external.{ExternalService}Facade;
 import {PACKAGE}.facade.external.model.{ExternalDTO};
 import {PACKAGE}.infrastructure.integration.{MODULE}.{ExternalService}FacadeClient;

@@ -327,9 +327,9 @@ import {PACKAGE}.infrastructure.{MODULE}.dataobject.{Business}ItemDO;
 import {PACKAGE}.infrastructure.{MODULE}.mapper.{Business}Mapper;
 import {PACKAGE}.infrastructure.{MODULE}.mapper.{Business}ItemMapper;
 import {PACKAGE}.infrastructure.{MODULE}.convert.{Business}Convert;
-import {PACKAGE}.common.model.exception.MycmBizException;
-import {PACKAGE}.common.model.exception.MycmSysException;
-import {PACKAGE}.common.model.exception.ErrorCodeEnum;
+import com.mycm.common.model.exception.MycmBizException;
+import com.mycm.common.model.exception.MycmSysException;
+import com.mycm.common.model.exception.ErrorCodeEnum;
 
 import java.util.List;
 
