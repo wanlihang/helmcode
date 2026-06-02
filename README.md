@@ -3,37 +3,67 @@
 </p>
 
 <p align="center">
-  AI Coding Workflow: clarify → implement → verify<br>
-  You steer, AI rows.
+  An AI coding workflow where humans steer and AI rows.<br>
+  <code>clarify → /goal (autonomous loop) → checkpoint</code>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/npm/v/helmcode?style=flat&colorA=080f12&colorB=1fa669" alt="npm version">
-  <img src="https://img.shields.io/npm/dm/helmcode?style=flat&colorA=080f12&colorB=1fa669" alt="npm downloads">
-  <img src="https://img.shields.io/github/license/mojue/helmcode?style=flat&colorA=080f12&colorB=1fa669" alt="License">
-  <img src="https://img.shields.io/node/v/helmcode?style=flat&colorA=080f12&colorB=1fa669" alt="Node version">
+  <a href="./README.md">English</a>
+  ·
+  <a href="./README.zh-CN.md">简体中文</a>
 </p>
+
+<p align="center">
+  <a href="https://github.com/wanlihang/helmcode"><img src="https://img.shields.io/github/package-json/v/wanlihang/helmcode?style=flat&colorA=080f12&colorB=1fa669" alt="version"></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/github/license/wanlihang/helmcode?style=flat&colorA=080f12&colorB=1fa669" alt="License"></a>
+  <img src="https://img.shields.io/node/v/helmcode?style=flat&colorA=080f12&colorB=1fa669" alt="Node version">
+  <a href="https://claude.ai/code"><img src="https://img.shields.io/badge/runs%20in-Claude%20Code-7C3AED?style=flat&colorA=080f12" alt="Claude Code"></a>
+</p>
+
+---
+
+## Table of Contents
+
+- [Why HelmCode?](#why-helmcode)
+- [Key Concepts](#key-concepts)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Usage Guide](#usage-guide)
+  - [End-to-End Workflow](#end-to-end-workflow)
+  - [Goal Achievement Criteria](#goal-achievement-criteria)
+  - [Command Reference](#command-reference)
+  - [Human Checkpoints](#human-checkpoints)
+  - [Common Scenarios](#common-scenarios)
+  - [Troubleshooting](#troubleshooting)
+- [Feature State Machine](#feature-state-machine)
+- [Standards](#standards)
+- [Project Structure](#project-structure)
+- [Example](#example)
+- [Comparison](#comparison)
+- [CLI Reference](#cli-reference)
+- [Contributing](#contributing)
+- [License](#license)
 
 ---
 
 ## Why HelmCode?
 
-When AI writes code, the bottleneck isn't generation — it's **judgment**.
+When AI writes code, the bottleneck is no longer generation — it is **judgment**.
 
-Reviewing a 400-line diff is slow. Reviewing 5 key decision points is fast.
+Reviewing a 400-line diff is slow. Reviewing five key decision points is fast.
 
-HelmCode redesigns the AI coding loop around one principle: **human judgment is the scarcest resource**. Instead of reviewing everything, you review only the decisions that matter.
+HelmCode redesigns the AI coding loop around one principle: **human judgment is the scarcest resource.** Instead of reviewing everything, you review only the decisions that matter.
 
-**How it works:**
+### How it works
 
-1. **clarify** — You define the problem and constraints. AI produces a **Behavior Contract** (not a document, a precise spec for code generation).
-2. **implement** — AI generates code and a **Judgment Log** — a list of design decisions it made, tagged by confidence.
-3. **verify** — AI validates correctness. You review only the **Judgment Log**, not the entire diff.
+1. **clarify** — You define the problem and constraints. AI produces a **Behavior Contract** — a precise spec for code generation, not a document.
+2. **/goal** — Claude Code drives an autonomous loop: implement → verify → fix → verify, until all hard-constraint checks pass.
+3. **checkpoint** — You review only the **Judgment Log** — the set of design decisions AI flagged as needing confirmation.
 
-```
-clarify  →  Behavior Contract (what to build + constraints)
-implement →  Code + Judgment Log (what AI decided + what needs your input)
-verify   →  Validation + Judgment Review (you review decisions, not diffs)
+```text
+clarify    →  Behavior Contract (what to build + constraints)
+/goal      →  Code + Tests + Judgment Log (AI runs the loop autonomously)
+checkpoint →  Decision review (you confirm flagged decisions, then commit)
 ```
 
 ## Key Concepts
@@ -41,9 +71,10 @@ verify   →  Validation + Judgment Review (you review decisions, not diffs)
 ### Behavior Contract
 
 A single file per feature that replaces scattered spec documents. Contains:
+
 - Problem definition
 - State machine (PlantUML)
-- Business rules (BR-xxx, each verifiable)
+- Business rules (`BR-xxx`, each programmatically verifiable)
 - API contract
 - Domain model
 - Acceptance criteria
@@ -51,164 +82,194 @@ A single file per feature that replaces scattered spec documents. Contains:
 ### Judgment Log
 
 The core innovation. AI actively exposes its design decisions:
-- **JD-xxx** — Made decisions (you can skim these)
-- **JD-xxx ⚠️** — Uncertain decisions (you **must** review these)
+
+- `JD-xxx` — Decisions already made (you can skim).
+- `JD-xxx ⚠️` — Uncertain decisions (you **must** review).
 
 ### Context Budget
 
-~55KB total context (vs. 365KB+ with traditional doc pipelines). Each skill loads only what it needs:
-- clarify: ~8-10KB
-- implement: 15-40KB
-- verify: ~5-10KB
+~55 KB total context per loop turn (versus 365 KB+ with traditional doc pipelines). Each skill loads only what it needs:
+
+| Skill | Budget |
+| --- | --- |
+| clarify | 8–10 KB |
+| implement | 15–40 KB |
+| verify | 5–10 KB |
 
 ## Installation
 
-> **Distribution**: HelmCode is distributed directly from GitHub — there is no npm package. All install commands below pull source from `github:wanlihang/helmcode`.
+> HelmCode is distributed directly from GitHub. All install commands pull source from `github:wanlihang/helmcode`.
 
 ```bash
 # Global install (recommended)
 npm install -g github:wanlihang/helmcode
 helmcode install --preset java-ddd
 
-# Pin a version (release tag)
-npm install -g github:wanlihang/helmcode#v2.0.3
+# Pin to a specific version
+npm install -g github:wanlihang/helmcode#v2.1.0
 
 # One-time use (no global install)
 npx -y github:wanlihang/helmcode install --preset java-ddd
 
-# Project-level
+# Project-local
 npm install --save-dev github:wanlihang/helmcode
 npx helmcode install
 
-# Check status
-helmcode status
-
-# Upgrade
-npm install -g github:wanlihang/helmcode    # re-pull HEAD of main
-helmcode update                             # re-sync skills/standards into project
+# Upgrade (self-update + reinstall project files)
+helmcode update
 ```
+
+After install, verify with:
+
+```bash
+helmcode status      # show installation state, version, remote update check
+helmcode version     # show version + install method (npm-global / npx / git-clone)
+```
+
+## Quick Start
+
+> **Prerequisites:** HelmCode installed in your project, and the project open in [Claude Code](https://claude.ai/code).
+
+Type in the Claude Code prompt:
+
+```text
+/dev-flow Add a "cancel order" feature to the order system
+```
+
+HelmCode automatically:
+
+1. Runs **clarify** — asks you about state machine, business rules, API boundaries → produces a behavior contract (`draft`).
+2. Waits for you to approve the contract (`draft → approved`).
+3. Enters the **`/goal` autonomous loop** — repeatedly runs implement → verify until all hard constraints pass.
+4. After `goal achieved`, runs **checkpoint** — surfaces ⚠️ decisions for your review, then commits.
+
+You only intervene at two points: **approve the contract** and **review ⚠️ decisions**. Everything between (code generation, compilation, testing, fixing) is autonomous.
 
 ## Usage Guide
 
-> **前置条件**:已 `helmcode install` 安装到目标项目;在 [Claude Code](https://claude.ai/code) 里打开该项目。
+### End-to-End Workflow
 
-### Quick Start(5 分钟跑通最小 Feature)
-
-```bash
-# 在 Claude Code 对话框里输入:
-/dev-flow 我要给订单系统增加"取消订单"功能
-```
-
-HelmCode 会自动:
-1. 进入 clarify,问你状态机、业务规则、API 边界等关键问题 → 产出**行为契约 draft**
-2. 等你确认契约(draft → approved)
-3. 进入 `/goal` 自主循环,反复 implement → verify 直到所有硬约束满足
-4. goal achieved 后进入 checkpoint,展示判断日志 ⚠️ 项让你审
-
-你只需要在 2 个节点介入:**审契约** + **审 ⚠️ 决策**。中间的代码生成/编译/测试/修复 AI 全自动跑。
-
----
-
-### 完整闭环工作流
-
-```
+```text
 ┌────────────────────────────────────────────────────────────────┐
-│  人:输入需求                                                    │
+│  Human: describe the requirement                               │
 │       ↓                                                        │
 │  Phase 1: /clarify                                             │
-│    AI 读现有代码 + standards → 问澄清问题 → 产出行为契约 draft   │
+│    AI reads existing code + standards → asks clarifying        │
+│    questions → produces a Behavior Contract (draft)            │
 │       ↓                                                        │
-│  ★ 人审契约:状态机完整? 业务规则精确? AC 可程序验证?         │
+│  ★ Human reviews contract: state machine complete? rules       │
+│    precise? ACs programmatically verifiable?                   │
 │    draft → approved                                            │
 │       ↓                                                        │
-│  Phase 2: /goal 自主循环(完全无人介入)                          │
-│    ┌─ Turn N: implement 读契约+patterns → 生成业务代码          │
-│    │           + 同步生成测试 → verify 跑 4 项检查              │
+│  Phase 2: /goal — autonomous loop (no human intervention)      │
+│    ┌─ Turn N: implement reads contract + patterns →            │
+│    │           generates code + tests → verify runs 4 checks   │
 │    │    ↓                                                      │
-│    ├─ Haiku 评估器看会话:4 项硬约束全满足?                     │
-│    │   否 → 下一 turn,implement 自动分析错误并修复              │
-│    │   是 → goal achieved                                      │
+│    ├─ Haiku evaluator reads the session: all 4 hard            │
+│    │   constraints satisfied?                                  │
+│    │   No  → next turn, implement analyzes errors and fixes    │
+│    │   Yes → goal achieved                                     │
 │    │                                                           │
-│    └─ 安全阀:8 次连续 block 自动停,交还控制权给人              │
+│    └─ Safety valve: 8 consecutive blocks → loop stops,         │
+│       control returns to human                                 │
 │       ↓                                                        │
 │  Phase 3: /checkpoint                                          │
-│    展示判断日志的 ⚠️ 项 → 人逐个拍板                            │
+│    Shows ⚠️ items in the judgment log → human confirms each    │
 │       ↓                                                        │
-│  ★ 人确认 ⚠️ → git commit(契约 status → done)                  │
+│  ★ Human confirms ⚠️ → git commit (contract status → done)     │
 └────────────────────────────────────────────────────────────────┘
 ```
 
-### 闭环硬约束(Haiku 评估器的 goal 达成标准)
+### Goal Achievement Criteria
 
-每个 turn 结束 verify 必须打印出以下 4 项,全满足才算 goal achieved:
+`verify` must print all four signals at the end of each turn. Only when all four pass does the Haiku evaluator declare `goal achieved`:
 
-| 检查项 | 通过信号 | 失败处理 |
-|--------|---------|---------|
-| **编译** | `BUILD SUCCESS` | 下一 turn 分析错误并修 |
-| **测试** | `Tests run: N (N ≥ 1), Failures: 0` | **N=0 视为失败"测试不存在"**,下一 turn 先补测试 |
-| **字段同步** | `verify-field-sync` 全部 ✅ | 下一 turn 补缺失字段 |
-| **架构合规** | `verify-arch-rules` 全部 ✅ | 下一 turn 按 review-rules 调整 |
+| Check | Pass signal | On failure |
+| --- | --- | --- |
+| **Compile** | `BUILD SUCCESS` | Next turn analyzes the error and fixes it. |
+| **Tests** | `Tests run: N (N ≥ 1), Failures: 0` | **`N = 0` is treated as failure** ("tests do not exist"). Next turn generates tests first. |
+| **Field sync** | `verify-field-sync` all ✅ | Next turn fills missing fields. |
+| **Arch rules** | `verify-arch-rules` all ✅ | Next turn adjusts per review-rules. |
 
-> **`Tests run ≥ 1` 是 v2.1.0 后的关键约束**——防止 AI 跳过测试用 `Tests run: 0, Failures: 0` 骗 Haiku 误判 goal achieved。详见 `core/verify/SKILL.md` §2。
+> **`Tests run ≥ 1` is a hard guard added in v2.1.0.** Without it, AI could skip test generation and let `Tests run: 0, Failures: 0` slip past the Haiku evaluator as a false positive. See `core/verify/SKILL.md` §2.
 
-### 命令清单
+### Command Reference
 
-| 命令 | 触发时机 | 说明 |
-|------|---------|------|
-| `/dev-flow {需求}` | **首选** | 完整主流程,clarify → /goal → checkpoint 一条龙 |
-| `/clarify` | 单独使用 | 只做需求澄清,产出行为契约 |
-| `/implement` | `/goal` 内自动调 | 代码生成 worker(单独跑会缺 verify 闭环) |
-| `/verify` | `/goal` 内自动调 / 单独验证 | 跑 4 项验证 |
-| `/analyze` | 主动审查 | 架构合规检查(独立于 /goal 之外) |
-| `/checkpoint` | goal achieved 后 | 展示判断日志 ⚠️ 项让人审 |
+| Command | When | Description |
+| --- | --- | --- |
+| `/dev-flow {requirement}` | **Recommended** | End-to-end pipeline: clarify → /goal → checkpoint. |
+| `/clarify` | Standalone | Requirement clarification only, produces a behavior contract. |
+| `/implement` | Auto-invoked inside `/goal` | Code generation worker (running standalone skips the verify loop). |
+| `/verify` | Auto-invoked inside `/goal` / standalone | Runs the 4 verification checks. |
+| `/analyze` | On demand | Architecture compliance check (independent of `/goal`). |
+| `/checkpoint` | After `goal achieved` | Surfaces ⚠️ items in the judgment log for human review. |
 
-### 何时必须人介入(只有 2 个节点)
+### Human Checkpoints
 
-| 节点 | 你做什么 | 为什么不能让 AI 自己拍板 |
-|------|---------|----------------------|
-| **Phase 1 之后** | 审 `.claude/contracts/{F-ID}.md` draft → 改 status 为 `approved` | 需求理解错了,后面循环再多遍都是错的 |
-| **Phase 3 checkpoint** | 审 `.claude/judgment-logs/{F-ID}.md` 里 ⚠️ 决策项 | AI 标记的"不确定决策"必须人拍板,否则就是把锅甩给 AI |
+Only **two** points require human intervention:
 
-中间 `/goal` 闭环里:AI 自己写代码、跑编译、跑测试、看错误、修代码——**不需要你介入**。除非 8 次连续 block 触发安全阀(那时它会停下来等你指导)。
+| Checkpoint | What you do | Why AI cannot decide alone |
+| --- | --- | --- |
+| **After Phase 1** | Review `.claude/contracts/{F-ID}.md` (draft) → change status to `approved`. | If the requirement is misunderstood, no amount of looping fixes it. |
+| **Phase 3 checkpoint** | Review ⚠️ items in `.claude/judgment-logs/{F-ID}.md`. | AI's flagged "uncertain decisions" must be ratified by a human — otherwise responsibility is silently transferred to AI. |
 
-### 典型场景
+Inside the `/goal` loop, AI writes code, runs the compiler, runs tests, reads errors, and fixes code — **without your involvement**. The only exception is when 8 consecutive blocks trigger the safety valve; the loop then stops and waits for your guidance.
 
-**场景 A — 0→1 新功能**:`/dev-flow 给订单系统加"批量退款"功能`
+### Common Scenarios
 
-**场景 B — 1→N 扩展**:`/dev-flow 给 F003-payment 加"支持微信渠道"`(基于已存在的契约扩)
+| Scenario | Example prompt |
+| --- | --- |
+| **0→1** new feature | `/dev-flow Add a "batch refund" feature to the order system` |
+| **1→N** extension | `/dev-flow Add WeChat channel support to F003-payment` |
+| **Bug fix** | `/dev-flow Fix the concurrent-duplicate issue in F002-daily-report` |
+| **Exploration** (clarify only) | `/clarify I want to build a reconciliation platform — help me scope the boundaries first` |
 
-**场景 C — Bug 修复**:`/dev-flow 修 F002-daily-report 的并发时数据重复问题`
+### Troubleshooting
 
-**场景 D — 只澄清不实现**(探索阶段):`/clarify 我想做一个对账平台,先帮我梳理清楚边界`
+| Symptom | Cause | Resolution |
+| --- | --- | --- |
+| `/goal` stops after 8 turns | Safety valve triggered (usually a compile error that keeps re-occurring). | Read the last few turns' errors, then give explicit guidance (dependency path, correct syntax, or scope reduction). |
+| `Tests run: 0` keeps failing | implement did not generate tests on its own. | Check that the contract has clear ACs; manually prompt: "generate ACTS 4-case suite for `{Facade}` per patterns/test.md". |
+| `goal achieved` but the code is obviously wrong | The Haiku evaluator is text-match-based and can be fooled by false positives (v2.1.0 closed the `Tests = 0` loophole; other vectors still exist). | Be strict during the checkpoint review of ⚠️ items. Do not commit blindly. |
+| Contract `approved` but `/goal` will not start | `registry.md` status mismatch or contract filename does not match. | Run `helmcode status`; or fix `registry.md` manually. |
+| Compile passes but `verify-field-sync` fails | DO / Entity / Convert fields out of sync. | Next turn usually backfills automatically. If it loops, manually patch one field, then continue. |
 
-### 故障排查
+## Feature State Machine
 
-| 现象 | 原因 | 处理 |
-|------|------|------|
-| `/goal` 跑 8 次后停 | 连续 block 安全阀触发(通常是编译错误反复修不好) | 看会话最后几 turn 的错误,手动指导(给依赖路径/给正确语法/降低范围) |
-| Tests run: 0 一直不通过 | implement 没主动生成测试 | 检查契约是否有清晰 AC;手动提示"按 patterns/test.md 给 {Facade} 生成 ACTS 4 用例" |
-| `goal achieved` 但代码明显不对 | Haiku 评估器只做文本匹配,可能被假阳性骗(v2.1.0 已修复 Tests N≥1 漏洞,其他场景仍可能) | checkpoint 阶段严格审 ⚠️;不要直接 commit |
-| 契约 approved 但 `/goal` 跑不起来 | registry.md 状态不一致 / 契约文件名不匹配 | 跑 `helmcode status` 查;或手动改 registry.md |
-| 编译过但 verify-field-sync 报错 | DO/Entity/Convert 字段不一致 | 看脚本输出的缺失字段,下一 turn 通常会自动补;如果反复补不全,人改一次再继续 |
+```text
+draft → approved → goal-running → done
+  ↓                  ↓             ↓
+abandoned         blocked       (committed)
+```
+
+| State | Meaning | Trigger |
+| --- | --- | --- |
+| `draft` | clarify produced contract, awaiting human review | clarify completes |
+| `approved` | Human approved, ready for `/goal` | Human edits status |
+| `goal-running` | `/goal` loop in progress | dev-flow Phase 2 begins |
+| `done` | checkpoint passed + commit | dev-flow Phase 3 completes |
+| `blocked` | 8-consecutive-block safety valve tripped | `/goal` interrupted |
+| `abandoned` | Discarded | Human decides |
 
 ## Standards
 
-HelmCode ships with pluggable technology standards:
+HelmCode ships with pluggable technology standards.
 
 ### Java DDD (default)
 
-Complete Java Spring Boot DDD standards based on analysis of 7 production projects:
+Complete Java Spring Boot DDD standards distilled from analysis of 7 production projects:
 
-- **Coding standards** — Layering, annotations, exceptions, transactions, naming
-- **Review rules** — 8 categories (A-H) of architecture compliance checks
-- **Test standards** — Coverage targets, mock rules, test structure
-- **Code patterns** — Entity, Facade, Aggregate, Repository, Strategy, Builder, etc.
+- **Coding standards** — Layering, annotations, exceptions, transactions, naming.
+- **Review rules** — 9 categories (A0–H) of architecture compliance checks, including §A0 package cohesion.
+- **Test standards** — Coverage targets, mock rules, test structure.
+- **Code patterns** — Entity, Facade, Aggregate, Repository, Strategy, Builder, Handler, Acceptor, etc. (12 files).
 
-**Project auto-detection:** `helmcode install` scans existing code and generates `project-conventions.md` to override defaults. Detects:
-- DO annotation style (`@Data` / `@Getter+@Setter` / plain)
-- Facade pattern (`@RpcProvider` / `@SofaService`, BizTemplate / manual)
-- MapStruct usage (INSTANCE / I / hand-written)
-- Persistence framework (MyBatis XML / MyBatis-Plus)
+**Project auto-detection:** `helmcode install` scans existing code and emits `project-conventions.md` to override defaults. Detects:
+
+- DO annotation style (`@Data` / `@Getter + @Setter` / plain).
+- Facade pattern (`@RpcProvider` / `@SofaService`; `BizTemplate` / manual).
+- MapStruct usage (`INSTANCE` / `I` / hand-written).
+- Persistence framework (MyBatis XML / MyBatis-Plus).
 
 ### Minimal
 
@@ -218,29 +279,30 @@ Core workflow only, no technology-specific standards.
 
 After `helmcode install --preset java-ddd`:
 
-```
+```text
 your-project/
-├── CLAUDE.md                          # HelmCode config
+├── CLAUDE.md                            # HelmCode project config
 ├── .claude/
-│   ├── skills/                        # Slash command skills
+│   ├── skills/                          # Slash-command skills
 │   │   ├── dev-flow/SKILL.md
 │   │   ├── clarify/SKILL.md + references/
 │   │   ├── implement/SKILL.md + references/
 │   │   ├── verify/SKILL.md
 │   │   ├── analyze/SKILL.md
 │   │   └── init-java-ddd/SKILL.md + references/ + templates/ + claude-md/
-│   ├── standards/                     # Coding standards
+│   ├── standards/                       # Coding standards
 │   │   ├── standards.md
-│   │   ├── project-conventions.md     # Auto-detected overrides
+│   │   ├── project-conventions.md       # Auto-detected overrides
 │   │   ├── review-rules.md
 │   │   ├── test-standards.md
-│   │   └── patterns/ (10 files)
-│   ├── contracts/                     # Behavior contracts
+│   │   └── patterns/ (12 files)
+│   ├── contracts/                       # Behavior contracts
 │   │   └── registry.md
-│   ├── briefs/                        # Project briefs (human-only)
-│   ├── judgment-logs/                 # Judgment logs
-│   ├── commands/                      # Checkpoint, state
-│   └── scripts/                       # Verify scripts
+│   ├── briefs/                          # Project briefs (human-only)
+│   ├── judgment-logs/                   # Judgment logs
+│   ├── commands/                        # /checkpoint, /state
+│   ├── scripts/                         # Verify scripts
+│   └── .helmcode-version                # Install metadata
 ```
 
 ## Example
@@ -258,13 +320,13 @@ INIT → DATA_PREPARED → PROCESSING → WAIT_CONFIRM → COMPLETED
                                                   → FAILED
 
 ## Business Rules
-- BR-001: Same merchant+billMonth cannot have duplicate active tasks
+- BR-001: Same merchant + billMonth cannot have duplicate active tasks
 - BR-002: Only WAIT_CONFIRM status can be confirmed/rejected
 
 ## API Contract
-| Method | Request | Response | Rules | Error Codes |
-|--------|---------|----------|-------|-------------|
-| createTask | CreateTaskCommand | Result<Long> | BR-001 | TASK_DUPLICATE |
+| Method     | Request           | Response       | Rules  | Error Codes      |
+| ---------- | ----------------- | -------------- | ------ | ---------------- |
+| createTask | CreateTaskCommand | Result<Long>   | BR-001 | TASK_DUPLICATE   |
 ```
 
 **Judgment Log** (`.claude/judgment-logs/F001-recon-task.md`):
@@ -275,58 +337,42 @@ INIT → DATA_PREPARED → PROCESSING → WAIT_CONFIRM → COMPLETED
   Reference: standards/patterns/strategy.md
 
 ## Needs Confirmation
-- [JD-004] ⚠️ Timeout check runs every 5 min, 30-min timeout has 5-10 min
-  margin of error. Acceptable?
+- [JD-004] ⚠️ Timeout check runs every 5 min; the 30-min timeout therefore has
+  a 5–10 min margin of error. Acceptable?
 ```
 
 ## Comparison
 
 | | Traditional | HelmCode |
-|---|---|---|
+| --- | --- | --- |
 | Human reviews | Entire diff | Judgment log only |
 | AI spec input | Scattered docs | Single behavior contract |
-| Context usage | 365KB+ | ~55KB |
+| Context usage | 365 KB+ | ~55 KB |
 | Review model | Code review | Decision review |
 | Tech stack | Fixed | Pluggable presets |
-
-## Feature State Machine
-
-```
-draft → approved → goal-running → done
-  ↓                  ↓             ↓
-abandoned         blocked       (committed)
-```
-
-| 状态 | 含义 | 触发 |
-|------|------|------|
-| `draft` | clarify 产出契约,等人审 | clarify 完成 |
-| `approved` | 人审通过,等进 /goal | 人手动改 status |
-| `goal-running` | /goal 自主循环中 | dev-flow Phase 2 设置 |
-| `done` | checkpoint 通过 + commit | dev-flow Phase 3 完成 |
-| `blocked` | 8 次连续 block 安全阀触发 | /goal 中断 |
-| `abandoned` | 主动放弃 | 人决定 |
+| Loop driver | Manual back-and-forth | `/goal` + Haiku evaluator |
 
 ## CLI Reference
 
 ```bash
-helmcode install [--preset java-ddd|minimal] [--project dir] [--force] [--global-loader]
-helmcode status  [--project dir]                       # 显示安装状态、版本、远程更新检查
-helmcode update  [--project dir] [--global-loader] [--no-self-update]
-                                                       # 自动 npm update -g / git pull + 重装项目文件
-helmcode version                                       # 显示版本和安装方式(npm-global/npm-local/git-clone/npx)
-helmcode list                                          # 列出可用 preset 和 skills
-helmcode --version, -v                                 # 简化版本输出
+helmcode install [--preset java-ddd|minimal] [--project DIR] [--force] [--global-loader]
+helmcode status  [--project DIR]                                   # installation state, version, remote update check
+helmcode update  [--project DIR] [--global-loader] [--no-self-update]
+                                                                   # npm update -g / git pull + reinstall project files
+helmcode version                                                   # version + install method
+helmcode list                                                      # available presets and skills
+helmcode --version, -v                                             # short version output
 ```
 
-### v2.1.0 新增能力
+### v2.1.0 Highlights
 
-- **自更新**:`helmcode update` 自动根据安装方式(npm-global / git-clone / npx)拉取最新源码后再重装
-- **版本追踪**:`.claude/.helmcode-version` 记录安装版本/方法/preset/时间戳
-- **`--no-self-update`**:仅重装项目文件,跳过源码自更新(适合 air-gapped 环境)
+- **Self-update** — `helmcode update` auto-detects install method (`npm-global` / `git-clone` / `npx`) and pulls the latest source before reinstalling project files.
+- **Version tracking** — `.claude/.helmcode-version` records install version, method, preset, and timestamp.
+- **`--no-self-update`** — Reinstall project files only, skipping source self-update (for air-gapped environments).
 
 ## Contributing
 
-Contributions are welcome! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
+Contributions are welcome. Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
 
 ## License
 
