@@ -25,7 +25,9 @@
 | API 契约（Facade 方法） | .claude/standards/patterns/facade.md | 3KB |
 | 聚合根 | .claude/standards/patterns/aggregate.md | 2KB |
 | 仓储/数据访问 | .claude/standards/patterns/repository.md | 3KB |
-| 应用服务（事务编排） | .claude/standards/patterns/application-service.md | 2KB |
+| 简单 CRUD 写操作（≤3 步,整体一个事务） | .claude/standards/patterns/application-service.md | 2KB |
+| 多步编排 / 状态机分支 | .claude/standards/patterns/handler.md | 18KB |
+| 业务受理（跨字段校验 / 状态前置 / 权限） | .claude/standards/patterns/acceptor.md | 9KB |
 | 策略模式/多渠道/多类型 | .claude/standards/patterns/strategy.md | 2KB |
 | Builder/复杂构造 | .claude/standards/patterns/builder.md | 1KB |
 
@@ -34,9 +36,19 @@
 2. 行为契约有"API 契约"章节 → 加载 facade.md
 3. 领域模型标注了 AggregateRoot → 加载 aggregate.md
 4. 领域模型有 Repository → 加载 repository.md
-5. API 契约有写操作（create/update/delete）→ 加载 application-service.md
-6. 业务规则涉及"多类型"/"多渠道"/"多策略" → 加载 strategy.md
-7. 领域模型有复杂构造逻辑（多步骤创建） → 加载 builder.md
+5. API 契约写操作 ≤3 步且整体一个事务 → 加载 application-service.md
+6. API 契约 ≥4 步,**或**需细粒度事务边界控制,**或**含审批回调/状态机分支 → 加载 handler.md（含 StatefulHandlerTemplate）
+7. API 契约涉及状态前置检查 / 跨字段校验 / 权限判断 → 加载 acceptor.md
+8. 业务规则涉及"多类型"/"多渠道"/"多策略" → 加载 strategy.md
+9. 领域模型有复杂构造逻辑（多步骤创建） → 加载 builder.md
+
+> **编排路径决策(按从上往下,第一个命中即定)**:
+> 1. 含审批回调/状态机分支 → handler.md(StatefulHandlerTemplate 段)
+> 2. ≥4 步,**或**需细粒度事务边界控制 → handler.md + acceptor.md
+> 3. ≤3 步且整体一个事务 → application-service.md
+>
+> 动作步数从契约的"业务规则/流程"段计数:一次 DB 写入或一次外部调用 = 一步。
+> 详见 `.claude/standards/standards.md` §0.3。
 
 **典型加载 3-4 个 pattern，合计 ~10KB**
 

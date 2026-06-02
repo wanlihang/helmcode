@@ -62,12 +62,19 @@ tags: [implement, 代码生成, 判断日志, goal-worker]
 | API 契约章节 | `.claude/standards/patterns/facade.md` |
 | 聚合根（AggregateRoot） | `.claude/standards/patterns/aggregate.md` |
 | Repository | `.claude/standards/patterns/repository.md` |
-| 写操作（create/update/delete） | `.claude/standards/patterns/application-service.md` |
+| 简单 CRUD 写操作（≤3 步,整体一个事务） | `.claude/standards/patterns/application-service.md` |
+| 多步编排（≥4 步,**或**需细粒度事务边界控制） | `.claude/standards/patterns/handler.md` + `.claude/standards/patterns/acceptor.md` |
+| 审批回调 / 状态机分支（PASS/REJECT/CANCEL） | `.claude/standards/patterns/handler.md` (StatefulHandlerTemplate 段) |
+| 业务受理（参数跨字段校验 / 状态前置 / 权限） | `.claude/standards/patterns/acceptor.md` |
 | 多类型/多渠道/多策略 | `.claude/standards/patterns/strategy.md` |
 | 复杂构造逻辑 | `.claude/standards/patterns/builder.md` |
 | 领域事件 | `.claude/standards/patterns/domain-event.md` |
 | 外部集成客户端 | `.claude/standards/patterns/integration-client.md` |
 | 测试代码 | `.claude/standards/patterns/test.md` |
+
+> **编排路径决策**:Service vs Handler+Action 的选择详见 `.claude/standards/standards.md` §0.3。
+> 默认假设是简单 CRUD 走 application-service.md;一旦契约出现"多步骤"/"事务边界"/"审批回调"
+> 关键词,必须改走 handler.md + acceptor.md。
 
 **第三层：参考代码（Subagent 读取）**
 
