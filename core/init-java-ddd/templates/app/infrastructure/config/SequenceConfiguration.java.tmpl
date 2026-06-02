@@ -13,9 +13,25 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * 序列生成器配置 (基于 ZDAL Sequence)。
- *  - 默认提供单库单表的 SequenceService;
- *  - 序列表需事先建好,默认名为 {{appName}}_sequence。
+ * ZDAL Sequence 序列生成器配置 (单库单表)。
+ *
+ * <p>基于数据库号段算法实现分布式 Sequence，以高性能、高可靠方式生成全局唯一序列号。
+ * 参考: https://yuque.antfin.com/middleware/zdal/sequence-manual
+ *
+ * <p><b>关键约束</b>:
+ * <ul>
+ *   <li>一个 Sequence Bean 对应一张 Sequence 表，而非某个具体序列。
+ *       minValue / maxValue / step 仅在首次使用某 sequenceName 时写入数据库行，
+ *       后续调整参数需直接修改数据库行，修改 Bean 参数<b>不会</b>生效。</li>
+ *   <li>systemDate 并非实时服务端时间，而是获取 Sequence Range 时的日期。
+ *       零点后 systemDate 可能滞后 1 天，直到下次获取新 Range 才更新。
+ *       需要精确服务端日期请使用 {@code getSystemDate()} / {@code getSystemTimestamp()} API。</li>
+ *   <li>Sequence 缓存段采取 24+1 小时随机过期策略；
+ *       开启预取开关后可能延长到 50 小时。
+ *       若序列值 24h 内不循环但 50h 内循环，可能出现重复。</li>
+ *   <li>规则表达式中的 length 仅左补 0 对齐长度，<b>不会</b>截断超长值。
+ *       需确保 maxValue 与 sequenceValue 位数匹配，否则实际序列号可能超出指定位数。</li>
+ * </ul>
  */
 @Configuration
 public class SequenceConfiguration {
@@ -25,26 +41,53 @@ public class SequenceConfiguration {
         return new SequenceServiceImpl(zdalSequence);
     }
 
+    /**
+     * 单库单表 Sequence Bean。
+     *
+     * <p>调用 {@code zdalSingleSequence.getNextValue("xxx_sequence", "DEFAULT")}
+     * 时，若数据库中不存在 name="xxx_sequence" 的行，ZDAL 会自动插入一行
+     * （取本法 minValue / maxValue / step 作为初始值）。
+     */
     @Bean(initMethod = "init")
     public ZdalSequence zdalSingleSequence(@Qualifier(value = "singleDataSource") ZdalDataSource dataSource) throws Exception {
         return new ZdalSequenceBuilder()
                 .dataSource(dataSource)
-                // TODO: 若实际序列表名不同,请同步修改 (例如 {{appName}}_seq / {{appName}}_sequence)
+                // 表名需与数据库中实际 Sequence 表名一致
                 .tableName("{{appName}}_sequence")
+                // 以下参数仅在首次自动插入数据库行时使用，后续修改需直接改 DB
                 .minValue(1)
                 .maxValue(99999999)
-                .step(1)
+                // 步长：一次从数据库获取的号段大小。
+                // 过小会增加 DB 访问频率，过大则号段浪费（重启丢失）。
+                // 默认 1000，与官方文档一致。
+                .step(1000)
+                // 获取号段采用乐观锁，多节点冲突时重试次数
                 .retryTimes(10)
-                .rules(createZdalShardingSequenceRuleMap())
+                .rules(createZdalSingleSequenceRuleMap())
                 .build();
     }
 
     /**
-     * Sequence 组装规则,默认 SIMPLE: systemDate(8) + dbId(2) + tableId(2) + sequenceValue(8) = 20 位。
+     * Sequence 组装规则 (单库单表)。
+     *
+     * <p>规则表达式格式: {@code {length(fieldName)=len}}，多个子规则拼接。
+     * length 仅左补 0 对齐，不会截断超长值。
+     *
+     * <p><b>内置字段</b>:
+     * <ul>
+     *   <li>{@code sequenceValue} — 原始序列号，如 00103057</li>
+     *   <li>{@code systemDate} — 获取 Range 时的日期，如 20260602 (非实时)</li>
+     * </ul>
+     *
+     * <p>ZDAL 内置 DEFAULT 规则: {@code {length(sequenceValue)=8}}，
+     * 即 8 位原始序列号 (不足 8 位左补 0)，示例: 00103057。
+     *
+     * <p>下面定义 SIMPLE 规则: {@code {length(systemDate)=8}{length(sequenceValue)=8}}，
+     * 即 8 位日期 + 8 位序列号 = 16 位，一天可生成 1 亿条，示例: 2026060200103057。
      */
-    private Map<String, String> createZdalShardingSequenceRuleMap() {
+    private Map<String, String> createZdalSingleSequenceRuleMap() {
         Map<String, String> ruleMap = new HashMap<>();
-        ruleMap.put("SIMPLE", "{length(systemDate)=8}{length(dbId)=2}{length(tableId)=2}{length(sequenceValue)=8}");
+        ruleMap.put("SIMPLE", "{length(systemDate)=8}{length(sequenceValue)=8}");
         return ruleMap;
     }
 }

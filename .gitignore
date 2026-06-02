@@ -6,3 +6,11 @@ node_modules/
 
 # Verification / sandbox artifacts (per project policy: do not retain)
 .test-output/
+
+# HelmCode install dogfood artifacts in the HelmCode repo itself.
+# - .claude/ 是 install 写出的副本(skills/commands/scripts 与 source 重复;
+#   settings.local.json 含本机绝对路径;.helmcode-version 是本机时间戳)
+# - CLAUDE.md 是 install.mjs 生成的 minimal preset 模板,与 HelmCode 仓库本身
+#   (Node.js 工具)无强关联
+.claude/
+CLAUDE.md

@@ -3,8 +3,9 @@
 # 用法:
 #   bash install.sh install [--preset java-ddd|minimal] [--project /path/to/project] [--force] [--global-loader]
 #   bash install.sh status [--project /path/to/project]
-#   bash install.sh update [--preset java-ddd|minimal] [--project /path/to/project] [--global-loader]
+#   bash install.sh update [--preset java-ddd|minimal] [--project /path/to/project] [--global-loader] [--no-self-update]
 #   bash install.sh list
+#   bash install.sh version
 #
 # 两种安装方式:
 # 1. 本脚本: bash install.sh install --preset java-ddd --project /path/to/project
@@ -17,6 +18,180 @@ set -e
 # 确定 HelmCode 源码路径
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 HELMCODE_HOME="$SCRIPT_DIR"
+
+# ── Version ──────────────────────────────────────────────
+
+get_helmcode_version() {
+  local pkg="$HELMCODE_HOME/package.json"
+  if [ -f "$pkg" ]; then
+    grep '"version"' "$pkg" | head -1 | sed 's/.*: *"//;s/".*//' 2>/dev/null || echo "unknown"
+  else
+    echo "unknown"
+  fi
+}
+
+# ── Install method detection ─────────────────────────────
+
+detect_install_method() {
+  # Check npm global
+  if command -v npm &>/dev/null; then
+    local npm_prefix
+    npm_prefix="$(npm config get prefix 2>/dev/null)" || true
+    if [ -n "$npm_prefix" ] && [ -f "$npm_prefix/bin/helmcode" -o -f "$npm_prefix/helmcode.cmd" ]; then
+      echo "npm-global"
+      return
+    fi
+  fi
+
+  # Check git clone
+  if [ -d "$HELMCODE_HOME/.git" ]; then
+    echo "git-clone"
+    return
+  fi
+
+  # Check npx
+  if [ -n "$npm_lifecycle_event" ] && echo "$npm_lifecycle_event" | grep -q "npx"; then
+    echo "npx"
+    return
+  fi
+
+  echo "unknown"
+}
+
+# ── Semver comparison ────────────────────────────────────
+
+# Returns: -1 (a < b), 0 (a == b), 1 (a > b)
+compare_semver() {
+  local a="$1" b="$2"
+  # Strip leading 'v' and prerelease suffix
+  a="${a#v}"; a="${a%%-*}"
+  b="${b#v}"; b="${b%%-*}"
+
+  local a_major a_minor a_patch b_major b_minor b_patch
+  IFS='.' read -r a_major a_minor a_patch <<< "$a"
+  IFS='.' read -r b_major b_minor b_patch <<< "$b"
+
+  a_major="${a_major:-0}"; a_minor="${a_minor:-0}"; a_patch="${a_patch:-0}"
+  b_major="${b_major:-0}"; b_minor="${b_minor:-0}"; b_patch="${b_patch:-0}"
+
+  if [ "$a_major" -gt "$b_major" ]; then echo 1; return
+  elif [ "$a_major" -lt "$b_major" ]; then echo -1; return; fi
+
+  if [ "$a_minor" -gt "$b_minor" ]; then echo 1; return
+  elif [ "$a_minor" -lt "$b_minor" ]; then echo -1; return; fi
+
+  if [ "$a_patch" -gt "$b_patch" ]; then echo 1; return
+  elif [ "$a_patch" -lt "$b_patch" ]; then echo -1; return; fi
+
+  echo 0
+}
+
+# ── Version stamp ────────────────────────────────────────
+
+write_version_stamp() {
+  local project_dir="$1" version="$2" method="$3" preset="$4"
+  local stamp_path="$project_dir/.claude/.helmcode-version"
+  mkdir -p "$(dirname "$stamp_path")"
+  cat > "$stamp_path" << STAMP_EOF
+{
+  "version": "$version",
+  "installMethod": "$method",
+  "preset": "$preset",
+  "installedAt": "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"
+}
+STAMP_EOF
+}
+
+read_version_stamp() {
+  local project_dir="$1"
+  local stamp_path="$project_dir/.claude/.helmcode-version"
+  if [ -f "$stamp_path" ]; then
+    cat "$stamp_path"
+  else
+    echo ""
+  fi
+}
+
+# ── Fetch latest version ─────────────────────────────────
+
+fetch_latest_version() {
+  local method="$1"
+  local version=""
+
+  if [ "$method" = "git-clone" ]; then
+    # Try GitHub releases API first
+    version="$(curl -s --max-time 5 -H "Accept: application/vnd.github+json" \
+      "https://api.github.com/repos/wanlihang/helmcode/releases/latest" 2>/dev/null \
+      | grep -o '"tag_name":"[^"]*"' | head -1 | sed 's/"tag_name":"//;s/"//' | sed 's/^v//')"
+
+    # Fallback to git ls-remote tags
+    if [ -z "$version" ]; then
+      version="$(git -C "$HELMCODE_HOME" ls-remote --tags origin 2>/dev/null \
+        | grep -o 'refs/tags/v\?[0-9]\+\.[0-9]\+\.[0-9]\+' \
+        | sed 's|refs/tags/v\?||' \
+        | sort -t. -k1,1n -k2,2n -k3,3n \
+        | tail -1)"
+    fi
+  else
+    # npm registry
+    version="$(curl -s --max-time 5 "https://registry.npmjs.org/helmcode/latest" 2>/dev/null \
+      | grep -o '"version":"[^"]*"' | head -1 | sed 's/"version":"//;s/"//')"
+  fi
+
+  echo "${version:-unknown}"
+}
+
+# ── Self-update ──────────────────────────────────────────
+
+self_update() {
+  local method="$1"
+
+  case "$method" in
+    npm-global)
+      log "⬆" "Updating via npm: npm update -g helmcode"
+      if npm update -g helmcode 2>&1; then
+        return 0
+      else
+        log "⚠" "npm update -g helmcode failed"
+        log "ℹ" "You may need sudo: sudo npm update -g helmcode"
+        return 1
+      fi
+      ;;
+    npm-local)
+      log "⬆" "Updating via npm: npm update helmcode"
+      if npm update helmcode 2>&1; then
+        return 0
+      else
+        log "⚠" "npm update helmcode failed"
+        return 1
+      fi
+      ;;
+    git-clone)
+      local branch
+      branch="$(git -C "$HELMCODE_HOME" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")"
+      log "⬆" "Updating via git: git pull origin $branch"
+      if git -C "$HELMCODE_HOME" pull origin "$branch" 2>&1; then
+        return 0
+      else
+        log "⚠" "git pull failed"
+        log "ℹ" "You may have local changes. Run 'git status' in $HELMCODE_HOME"
+        return 1
+      fi
+      ;;
+    npx)
+      log "ℹ" "Running via npx — cannot self-update."
+      log "ℹ" "Next time use: npx helmcode@latest install"
+      return 1
+      ;;
+    *)
+      log "⚠" "Could not determine install method. Manual update options:"
+      log " " "  npm update -g helmcode"
+      log " " "  git pull  (if cloned from GitHub)"
+      log " " "  npx helmcode@latest install"
+      return 1
+      ;;
+  esac
+}
 
 # ── Helpers ──────────────────────────────────────────────
 
@@ -60,8 +235,6 @@ install_skills() {
   shift
   local skills=("$@")
 
-  phase_header 1 "安装 Skills 到 .claude/skills/"
-
   for skill in "${skills[@]}"; do
     local source="$HELMCODE_HOME/core/$skill"
     local target="$project_dir/.claude/skills/$skill"
@@ -95,8 +268,6 @@ install_skills() {
 install_standards() {
   local project_dir="$1"
   local preset="$2"
-
-  phase_header 2 "安装编码标准 (preset: $preset)"
 
   if [ "$preset" = "minimal" ]; then
     log "ℹ" "Preset 'minimal' 无编码标准"
@@ -474,8 +645,6 @@ FOOTER_EOF
 create_project_dirs() {
   local project_dir="$1"
 
-  phase_header 4 "创建项目目录"
-
   local dirs=(
     ".claude/contracts"
     ".claude/briefs"
@@ -537,8 +706,6 @@ EOF
 
 configure_claude_md() {
   local project_dir="$1"
-
-  phase_header 5 "配置 CLAUDE.md"
 
   local claude_md="$project_dir/CLAUDE.md"
 
@@ -615,6 +782,8 @@ cmd_install() {
   local project_dir="$2"
   local force="$3"
   local global_loader="$4"
+  local quiet="$5"
+  local phase_offset="$6"
 
   if [ -z "$project_dir" ]; then
     project_dir="$(pwd)"
@@ -677,59 +846,79 @@ cmd_install() {
     fi
   fi
 
-  header "HelmCode 安装中..."
+  local current_version
+  current_version="$(get_helmcode_version)"
+  local install_method
+  install_method="$(detect_install_method)"
+
+  if [ "$quiet" != "true" ]; then
+    header "HelmCode 安装中..."
+    log "ℹ" "Source version: v${current_version} (${install_method})"
+  fi
+
+  # Phase numbering: when called from update, continue from the offset
+  [ -z "$phase_offset" ] && phase_offset=0
 
   # Phase 1: 安装 Skills
+  phase_header $((phase_offset + 1)) "安装 Skills 到 .claude/skills/"
   install_skills "$project_dir" "${skills[@]}"
 
   # Phase 2: 安装 Standards
+  phase_header $((phase_offset + 2)) "安装编码标准 (preset: $preset)"
   install_standards "$project_dir" "$preset"
 
   # Phase 3: 扫描项目约定 (仅 java-ddd)
   if [ "$preset" = "java-ddd" ] && [ -d "$project_dir/app" ]; then
-    phase_header 3 "扫描项目约定"
+    phase_header $((phase_offset + 3)) "扫描项目约定"
     generate_project_conventions "$project_dir"
   elif [ "$preset" = "java-ddd" ]; then
-    phase_header 3 "扫描项目约定"
+    phase_header $((phase_offset + 3)) "扫描项目约定"
     log "ℹ" "未找到 app/ 目录，跳过项目约定扫描"
   fi
 
   # Phase 4: 创建项目目录
+  phase_header $((phase_offset + 4)) "创建项目目录"
   create_project_dirs "$project_dir"
 
   # Phase 5: 配置 CLAUDE.md
+  phase_header $((phase_offset + 5)) "配置 CLAUDE.md"
   configure_claude_md "$project_dir"
 
   # Phase 6: 全局 loader (可选)
   if [ "$global_loader" = true ]; then
-    phase_header 6 "安装全局 Loader"
+    phase_header $((phase_offset + 6)) "安装全局 Loader"
     install_global_loader
   fi
 
-  # 完成报告
-  local skill_count=${#skills[@]}
-  local standards_count=0
-  if [ -d "$project_dir/.claude/standards" ]; then
-    standards_count=$(find "$project_dir/.claude/standards" -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
-  fi
+  # Write version stamp
+  local new_version
+  new_version="$(get_helmcode_version)"
+  local new_method
+  new_method="$(detect_install_method)"
+  write_version_stamp "$project_dir" "$new_version" "$new_method" "$preset"
 
-  header "HelmCode 安装完成！"
-  echo ""
-  echo "  📦 已安装:"
-  echo "     Skills:    ${skill_count} 个"
-  echo "     Standards: ${standards_count} 个文件"
-  echo ""
-  echo "  🚀 使用方式:"
-  echo "     /dev-flow    — Goal 驱动工作流 (clarify → /goal → checkpoint)"
-  echo "     /clarify     — 拆解需求，生成行为契约"
-  echo "     /checkpoint  — 审查判断日志"
-  echo ""
-  echo "  📝 工作流:"
-  echo "     1. /clarify   — 描述需求 → 生成行为契约（人审查约束）"
-  echo "     2. /implement — 读取行为契约 → 生成代码 + 判断日志"
-  echo "     3. /verify    — 验证代码 → 审查判断日志 → 确认提交"
-  echo ""
-  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  # 完成报告 (skip when called from update — update prints its own summary)
+  if [ "$quiet" != "true" ]; then
+    local skill_count=${#skills[@]}
+    local standards_count=0
+    if [ -d "$project_dir/.claude/standards" ]; then
+      standards_count=$(find "$project_dir/.claude/standards" -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
+    fi
+
+    header "HelmCode 安装完成！"
+    echo ""
+    echo "  📦 已安装:"
+    echo "     Version:   v${new_version}"
+    echo "     Skills:    ${skill_count} 个"
+    echo "     Standards: ${standards_count} 个文件"
+    echo ""
+    echo "  🚀 使用方式:"
+    echo "     /dev-flow    — Goal 驱动工作流 (clarify → /goal → checkpoint)"
+    echo "     /clarify     — 拆解需求，生成行为契约"
+    echo "     /checkpoint  — 审查判断日志"
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  fi
 }
 
 # ── Status command ───────────────────────────────────────
@@ -752,8 +941,36 @@ cmd_status() {
   local skills_dir="$claude_dir/skills"
   local standards_dir="$claude_dir/standards"
 
+  local current_version
+  current_version="$(get_helmcode_version)"
+  local install_method
+  install_method="$(detect_install_method)"
+
   header "HelmCode 状态"
-  echo "  项目: $project_dir"
+  echo "  Source:      $HELMCODE_HOME"
+  echo "  Install:    $install_method"
+  echo "  Version:    v${current_version}"
+
+  # Read version stamp
+  local stamp_content
+  stamp_content="$(read_version_stamp "$project_dir")"
+  if [ -n "$stamp_content" ]; then
+    local stamp_version stamp_preset stamp_date
+    stamp_version="$(echo "$stamp_content" | grep -o '"version": *"[^"]*"' | sed 's/"version": *"//;s/"//')"
+    stamp_preset="$(echo "$stamp_content" | grep -o '"preset": *"[^"]*"' | sed 's/"preset": *"//;s/"//')"
+    stamp_date="$(echo "$stamp_content" | grep -o '"installedAt": *"[^"]*"' | sed 's/"installedAt": *"//;s/"//')"
+    if [ -n "$stamp_version" ]; then
+      local display_date=""
+      if [ -n "$stamp_date" ]; then
+        display_date="$(echo "$stamp_date" | cut -dT -f1)"
+      fi
+      echo "  Installed:  v${stamp_version} (${stamp_preset}${display_date:+, ${display_date}})"
+    fi
+  else
+    echo "  Installed:  unknown (installed before version tracking)"
+  fi
+
+  echo "  Project:    $project_dir"
   echo ""
 
   if [ ! -d "$claude_dir" ]; then
@@ -761,6 +978,22 @@ cmd_status() {
     log "ℹ" "运行 helmcode install 安装"
     return
   fi
+
+  # Check for updates
+  local latest_version
+  latest_version="$(fetch_latest_version "$install_method")"
+  if [ "$latest_version" != "unknown" ] && [ -n "$latest_version" ]; then
+    local cmp
+    cmp="$(compare_semver "$current_version" "$latest_version")"
+    if [ "$cmp" = "-1" ]; then
+      log "⬆" "Update available: v${current_version} → v${latest_version} (run: helmcode update)"
+    else
+      log "✓" "Up to date (v${current_version})"
+    fi
+  else
+    log "ℹ" "Could not check for updates (offline or registry unavailable)"
+  fi
+  echo ""
 
   # Check skills
   if [ -d "$skills_dir" ]; then
@@ -827,7 +1060,12 @@ cmd_status() {
 # ── List command ─────────────────────────────────────────
 
 cmd_list() {
-  header "HelmCode 可用 Preset"
+  local current_version
+  current_version="$(get_helmcode_version)"
+  local install_method
+  install_method="$(detect_install_method)"
+
+  header "HelmCode 可用 Preset (v${current_version}, ${install_method})"
   echo ""
   echo "  java-ddd:"
   echo "    Skills:    ${JAVA_DDD_SKILLS[*]}"
@@ -840,12 +1078,27 @@ cmd_list() {
   echo ""
 }
 
+# ── Version command ──────────────────────────────────────
+
+cmd_version() {
+  local v
+  v="$(get_helmcode_version)"
+  local method
+  method="$(detect_install_method)"
+
+  echo "HelmCode v${v}"
+  echo "  Install method: ${method}"
+  echo "  Source path:    ${HELMCODE_HOME}"
+  echo "  Node.js:        $(node --version 2>/dev/null || echo 'N/A')"
+}
+
 # ── Update command ───────────────────────────────────────
 
 cmd_update() {
   local preset="$1"
   local project_dir="$2"
   local global_loader="$3"
+  local no_self_update="$4"
 
   if [ -z "$project_dir" ]; then
     project_dir="$(pwd)"
@@ -862,10 +1115,67 @@ cmd_update() {
     preset=$(detect_preset "$project_dir")
   fi
 
-  log "ℹ" "更新 HelmCode (preset: $preset) 到 $project_dir"
+  local current_version
+  current_version="$(get_helmcode_version)"
+  local install_method
+  install_method="$(detect_install_method)"
 
-  # Update is just reinstall with --force
-  cmd_install "$preset" "$project_dir" "true" "$global_loader"
+  header "HelmCode 更新"
+  echo "  Source:      $HELMCODE_HOME"
+  echo "  Install:    $install_method"
+  echo "  Version:    v${current_version}"
+  echo "  Project:    $project_dir"
+  echo ""
+
+  # Step 1: Self-update (pull latest source)
+  if [ "$no_self_update" != "true" ]; then
+    phase_header 1 "检查更新"
+
+    local latest_version
+    latest_version="$(fetch_latest_version "$install_method")"
+
+    if [ "$latest_version" = "unknown" ] || [ -z "$latest_version" ]; then
+      log "⚠" "无法检查更新（网络不可达或注册表不可用）"
+      log "ℹ" "从当前源重新安装项目文件..."
+    else
+      local cmp
+      cmp="$(compare_semver "$current_version" "$latest_version")"
+
+      if [ "$cmp" = "-1" ]; then
+        log "⬆" "新版本可用: v${current_version} → v${latest_version}"
+        log "ℹ" "正在通过 ${install_method} 更新源码..."
+
+        if self_update "$install_method"; then
+          local new_version
+          new_version="$(get_helmcode_version)"
+          log "✓" "源码已更新: v${current_version} → v${new_version}"
+        else
+          log "⚠" "源码更新失败，从当前版本 v${current_version} 重新安装"
+        fi
+      else
+        log "✓" "已是最新版本 (v${current_version})"
+        log "ℹ" "重新安装项目文件..."
+      fi
+    fi
+  else
+    phase_header 1 "自更新 (已跳过)"
+    log "ℹ" "跳过源码更新 (--no-self-update)"
+    log "ℹ" "从当前源重新安装项目文件..."
+  fi
+
+  # Step 2: Reinstall to project (phase numbers continue from 2)
+  phase_header 2 "重新安装项目文件"
+  cmd_install "$preset" "$project_dir" "true" "$global_loader" "true" "2"
+
+  # Summary
+  local new_version
+  new_version="$(get_helmcode_version)"
+  header "HelmCode 更新完成！"
+  echo ""
+  echo "  Version:   v${new_version}"
+  echo "  Preset:    ${preset}"
+  echo ""
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 }
 
 # ── Main ─────────────────────────────────────────────────
@@ -875,17 +1185,18 @@ PRESET=""
 PROJECT_DIR=""
 FORCE=false
 GLOBAL_LOADER=false
+NO_SELF_UPDATE=false
 
 # Parse command and options
 if [ $# -eq 0 ]; then
   # No args: default to install with auto-detect
-  cmd_install "" "" "false" "false"
+  cmd_install "" "" "false" "false" "false" "0"
   exit 0
 fi
 
 # First arg might be a command
 case "$1" in
-  install|status|update|list)
+  install|status|update|list|version)
     COMMAND="$1"
     shift
     ;;
@@ -895,7 +1206,7 @@ case "$1" in
     ;;
   *)
     echo "未知命令: $1"
-    echo "可用命令: install, status, update, list"
+    echo "可用命令: install, status, update, list, version"
     echo "运行 bash install.sh --help 查看帮助"
     exit 1
     ;;
@@ -920,32 +1231,45 @@ while [[ $# -gt 0 ]]; do
       GLOBAL_LOADER=true
       shift
       ;;
+    --no-self-update)
+      NO_SELF_UPDATE=true
+      shift
+      ;;
+    --version|-v)
+      cmd_version
+      exit 0
+      ;;
     --help|-h)
       echo "HelmCode — AI编程工作流: clarify → /goal → checkpoint"
       echo ""
-      echo "用法: bash install.sh <command> [options]"
+      echo "用法: helmcode <command> [options]"
       echo ""
       echo "Commands:"
       echo "  install    安装 HelmCode 到项目 (默认命令)"
-      echo "  status     显示已安装状态"
-      echo "  update     更新已安装内容"
+      echo "  status     显示已安装状态和版本信息"
+      echo "  update     拉取最新版本并重新安装项目文件"
       echo "  list       列出可用 preset 和 skills"
+      echo "  version    显示 HelmCode 版本和安装信息"
       echo ""
       echo "Options:"
       echo "  --preset <name>          Preset: java-ddd | minimal (自动检测)"
       echo "  --project <path>         目标项目目录 (默认: 当前目录)"
       echo "  --force                  跳过确认"
       echo "  --global-loader          同时安装全局 helmcode-loader skill"
+      echo "  --no-self-update         跳过源码更新，仅重新安装项目文件"
+      echo "  --version, -v            显示版本"
       echo "  --help, -h               显示帮助"
       echo ""
       echo "示例:"
-      echo "  bash install.sh                                    # 自动检测，安装到当前目录"
-      echo "  bash install.sh install --preset java-ddd          # Java DDD 全量"
-      echo "  bash install.sh install --project ~/my-project     # 指定项目目录"
-      echo "  bash install.sh install --global-loader            # 同时安装全局 loader"
-      echo "  bash install.sh status                             # 查看安装状态"
-      echo "  bash install.sh update                             # 更新"
-      echo "  bash install.sh list                               # 列出可用 preset"
+      echo "  helmcode install                                    # 自动检测，安装到当前目录"
+      echo "  helmcode install --preset java-ddd                  # Java DDD 全量"
+      echo "  helmcode install --project ~/my-project             # 指定项目目录"
+      echo "  helmcode install --global-loader                    # 同时安装全局 loader"
+      echo "  helmcode status                                     # 查看安装状态和版本"
+      echo "  helmcode update                                     # 拉取最新版本并重新安装"
+      echo "  helmcode update --no-self-update                    # 仅从当前源重新安装"
+      echo "  helmcode version                                    # 显示版本信息"
+      echo "  helmcode list                                       # 列出可用 preset"
       exit 0
       ;;
     *)
@@ -964,9 +1288,12 @@ case "$COMMAND" in
     cmd_status "$PROJECT_DIR"
     ;;
   update)
-    cmd_update "$PRESET" "$PROJECT_DIR" "$GLOBAL_LOADER"
+    cmd_update "$PRESET" "$PROJECT_DIR" "$GLOBAL_LOADER" "$NO_SELF_UPDATE"
     ;;
   list)
     cmd_list
+    ;;
+  version)
+    cmd_version
     ;;
 esac

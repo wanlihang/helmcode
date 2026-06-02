@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { install, status, list, update } from '../install.mjs';
+import { install, status, list, update, version } from '../install.mjs';
 
 // ── Argument parser ─────────────────────────────────────
 
@@ -22,6 +22,13 @@ function parseArgs(argv) {
         break;
       case '--global-loader':
         options.globalLoader = true;
+        break;
+      case '--no-self-update':
+        options.noSelfUpdate = true;
+        break;
+      case '--version':
+      case '-v':
+        options.showVersion = true;
         break;
       case '--help':
       case '-h':
@@ -49,15 +56,18 @@ Usage:
 
 Commands:
   install    Install HelmCode to a project
-  status     Show installation status
-  update     Update HelmCode files
+  status     Show installation status and version info
+  update     Pull latest version and reinstall project files
   list       List available presets
+  version    Show HelmCode version and install info
 
 Options:
   --preset <name>        Preset: java-ddd | minimal (auto-detect)
   --project <path>       Target project directory (default: current)
   --force                Skip confirmation
   --global-loader        Also install global helmcode-loader skill
+  --no-self-update       Skip source update, only reinstall project files
+  --version, -v          Show version
   --help, -h             Show this help
 
 Examples:
@@ -65,7 +75,10 @@ Examples:
   helmcode install --preset java-ddd         # Java DDD full install
   helmcode install --project ~/my-project    # Specify target project
   helmcode install --global-loader           # Also install global loader
-  helmcode status                            # Check installation status
+  helmcode status                            # Check installation status + version
+  helmcode update                            # Pull latest version and reinstall
+  helmcode update --no-self-update           # Reinstall from current source only
+  helmcode version                           # Show version info
   helmcode list                              # List available presets
 `);
 }
@@ -75,7 +88,17 @@ Examples:
 const { command, options } = parseArgs(process.argv);
 
 if (options.help || !command) {
+  if (options.showVersion) {
+    await version();
+    process.exit(0);
+  }
   showHelp();
+  process.exit(0);
+}
+
+// Handle --version as a global flag regardless of command
+if (options.showVersion) {
+  await version();
   process.exit(0);
 }
 
@@ -91,6 +114,9 @@ switch (command) {
     break;
   case 'list':
     await list();
+    break;
+  case 'version':
+    await version();
     break;
   default:
     console.error(`Unknown command: ${command}`);

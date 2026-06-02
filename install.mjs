@@ -3,10 +3,200 @@
 import { cpSync, mkdirSync, existsSync, readFileSync, writeFileSync, rmSync, symlinkSync, lstatSync, readdirSync } from 'node:fs';
 import { join, resolve, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { execSync } from 'node:child_process';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const HELMCODE_HOME = __dirname;
+
+// ── Version ──────────────────────────────────────────────
+
+function getHelmcodeVersion() {
+  try {
+    const pkg = JSON.parse(readFileSync(join(HELMCODE_HOME, 'package.json'), 'utf-8'));
+    return pkg.version || 'unknown';
+  } catch {
+    return 'unknown';
+  }
+}
+
+// ── Install method detection ─────────────────────────────
+
+function detectInstallMethod() {
+  // Check if installed via npm (global or local)
+  try {
+    const npmGlobalPrefix = execSync('npm config get prefix 2>/dev/null', { encoding: 'utf-8' }).trim();
+    const npmGlobalBin = join(npmGlobalPrefix, 'bin', 'helmcode');
+    const npmGlobalBinWin = join(npmGlobalPrefix, 'helmcode.cmd');
+    if (existsSync(npmGlobalBin) || existsSync(npmGlobalBinWin)) {
+      // Check if the linked path matches our HELMCODE_HOME
+      try {
+        const realPath = execSync(`readlink -f "${npmGlobalBin}" 2>/dev/null || echo ""`, { encoding: 'utf-8' }).trim();
+        if (realPath && realPath.includes('helmcode')) return 'npm-global';
+      } catch { /* fallthrough */ }
+      return 'npm-global';
+    }
+  } catch { /* npm not available */ }
+
+  // Check if installed via npm locally (devDependency)
+  try {
+    const localPkg = join(HELMCODE_HOME, 'node_modules', 'helmcode');
+    if (existsSync(localPkg)) return 'npm-local';
+  } catch { /* fallthrough */ }
+
+  // Check if inside a git repo
+  try {
+    const gitDir = join(HELMCODE_HOME, '.git');
+    if (existsSync(gitDir)) return 'git-clone';
+  } catch { /* fallthrough */ }
+
+  // Check if run via npx
+  if (process.env.npm_lifecycle_event === 'npx' || (process.argv[1] && process.argv[1].includes('_npx'))) {
+    return 'npx';
+  }
+
+  return 'unknown';
+}
+
+// ── Semver comparison ────────────────────────────────────
+
+function compareSemver(a, b) {
+  const parse = (v) => {
+    const cleaned = (v || '0.0.0').replace(/^v/, '').split('-')[0];
+    return cleaned.split('.').map(Number);
+  };
+  const pa = parse(a), pb = parse(b);
+  for (let i = 0; i < 3; i++) {
+    if ((pa[i] || 0) > (pb[i] || 0)) return 1;
+    if ((pa[i] || 0) < (pb[i] || 0)) return -1;
+  }
+  return 0;
+}
+
+// ── Version stamp ────────────────────────────────────────
+
+function writeVersionStamp(projectDir, version, method, preset) {
+  const stampPath = join(projectDir, '.claude', '.helmcode-version');
+  mkdirSync(dirname(stampPath), { recursive: true });
+  const stamp = {
+    version,
+    installMethod: method,
+    preset,
+    installedAt: new Date().toISOString(),
+  };
+  writeFileSync(stampPath, JSON.stringify(stamp, null, 2) + '\n');
+}
+
+function readVersionStamp(projectDir) {
+  const stampPath = join(projectDir, '.claude', '.helmcode-version');
+  if (!existsSync(stampPath)) return null;
+  try {
+    return JSON.parse(readFileSync(stampPath, 'utf-8'));
+  } catch {
+    return null;
+  }
+}
+
+// ── Fetch latest version from registry ───────────────────
+
+async function fetchLatestVersion(method) {
+  // For npm-based installs (and unknown/npx), check npm registry
+  if (method === 'git-clone') {
+    // For git, try GitHub releases API first
+    try {
+      const resp = await fetch('https://api.github.com/repos/wanlihang/helmcode/releases/latest', {
+        signal: AbortSignal.timeout(5000),
+        headers: { 'User-Agent': 'helmcode-cli' },
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        const tag = (data.tag_name || '').replace(/^v/, '');
+        if (tag) return { latestVersion: tag, source: 'github' };
+      }
+    } catch { /* fallthrough to git tags */ }
+
+    // Fallback: try git ls-remote tags
+    try {
+      const tags = execSync('git -C "' + HELMCODE_HOME + '" ls-remote --tags origin 2>/dev/null', {
+        encoding: 'utf-8',
+        timeout: 5000,
+      }).trim();
+      const versionTags = tags.split('\n')
+        .map(line => {
+          const m = line.match(/refs\/tags\/v?(\d+\.\d+\.\d+)/);
+          return m ? m[1] : null;
+        })
+        .filter(Boolean);
+      if (versionTags.length > 0) {
+        // Sort and pick the latest
+        versionTags.sort((a, b) => compareSemver(b, a));
+        return { latestVersion: versionTags[0], source: 'git' };
+      }
+    } catch { /* no tags available */ }
+
+    return { latestVersion: null, source: 'unknown' };
+  }
+
+  // npm registry (for npm-global, npm-local, npx, unknown)
+  try {
+    const resp = await fetch('https://registry.npmjs.org/helmcode/latest', {
+      signal: AbortSignal.timeout(5000),
+    });
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data.version) return { latestVersion: data.version, source: 'npm' };
+    }
+  } catch { /* network error */ }
+
+  return { latestVersion: null, source: 'unknown' };
+}
+
+// ── Self-update ──────────────────────────────────────────
+
+function selfUpdate(method) {
+  try {
+    switch (method) {
+      case 'npm-global':
+        log('⬆', 'Updating via npm: npm update -g helmcode');
+        execSync('npm update -g helmcode', { stdio: 'inherit' });
+        return true;
+
+      case 'npm-local':
+        log('⬆', 'Updating via npm: npm update helmcode');
+        execSync('npm update helmcode', { stdio: 'inherit' });
+        return true;
+
+      case 'git-clone': {
+        const branch = execSync('git -C "' + HELMCODE_HOME + '" rev-parse --abbrev-ref HEAD', {
+          encoding: 'utf-8',
+        }).trim();
+        log('⬆', `Updating via git: git pull origin ${branch}`);
+        execSync(`git -C "${HELMCODE_HOME}" pull origin ${branch}`, { stdio: 'inherit' });
+        return true;
+      }
+
+      case 'npx':
+        log('ℹ', 'Running via npx — cannot self-update.');
+        log('ℹ', 'Next time use: npx helmcode@latest install');
+        return false;
+
+      default:
+        log('⚠', 'Could not determine install method. Manual update options:');
+        log(' ', '  npm update -g helmcode');
+        log(' ', '  git pull  (if cloned from GitHub)');
+        log(' ', '  npx helmcode@latest install');
+        return false;
+    }
+  } catch (err) {
+    log('⚠', `Self-update failed: ${err.message}`);
+    if (method === 'npm-global') {
+      log('ℹ', 'You may need sudo: sudo npm update -g helmcode');
+    } else if (method === 'git-clone') {
+      log('ℹ', 'You may have local changes. Run "git status" in the HelmCode directory.');
+    }
+    return false;
+  }
+}
 
 // ── Helpers ──────────────────────────────────────────────
 
@@ -546,7 +736,7 @@ function generateProjectConventions(projectDir) {
 // ── Main install ─────────────────────────────────────────
 
 export async function install(options) {
-  const { preset: presetArg, project: projectArg, force, globalLoader } = options;
+  const { preset: presetArg, project: projectArg, force, globalLoader, quiet } = options;
 
   const projectDir = resolve(projectArg || process.cwd());
   const preset = presetArg || detectPreset(projectDir);
@@ -588,21 +778,30 @@ export async function install(options) {
     }
   }
 
-  header('HelmCode Installing...');
+  if (!quiet) {
+    header('HelmCode Installing...');
+
+    const currentVersion = getHelmcodeVersion();
+    const installMethod = detectInstallMethod();
+    log('ℹ', `Source version: v${currentVersion} (${installMethod})`);
+  }
 
   const presetConfig = PRESETS[preset];
 
+  // Phase numbering: when called from update, continue from the offset
+  const phaseBase = options.phaseOffset || 0;
+
   // Phase 1: Install Skills
-  phaseHeader(1, 'Install Skills');
+  phaseHeader(phaseBase + 1, 'Install Skills');
   installSkills(projectDir, presetConfig.skills);
 
   // Phase 2: Install Standards
-  phaseHeader(2, `Install Standards (${preset})`);
+  phaseHeader(phaseBase + 2, `Install Standards (${preset})`);
   const standardsCount = await installStandards(projectDir, preset);
 
   // Phase 3: Scan project conventions
   if (preset === 'java-ddd') {
-    phaseHeader(3, 'Scan Project Conventions');
+    phaseHeader(phaseBase + 3, 'Scan Project Conventions');
     const conventionsMd = generateProjectConventions(projectDir);
     const conventionsPath = join(projectDir, '.claude', 'standards', 'project-conventions.md');
     mkdirSync(dirname(conventionsPath), { recursive: true });
@@ -621,31 +820,37 @@ export async function install(options) {
   }
 
   // Phase 4: Create project directories
-  phaseHeader(4, 'Create Project Directories');
+  phaseHeader(phaseBase + 4, 'Create Project Directories');
   createProjectDirs(projectDir);
 
   // Phase 5: Configure CLAUDE.md
-  phaseHeader(5, 'Configure CLAUDE.md');
+  phaseHeader(phaseBase + 5, 'Configure CLAUDE.md');
   configureClaudeMd(projectDir, preset);
 
   // Phase 6: Global loader (optional)
   if (globalLoader) {
-    phaseHeader(6, 'Install Global Loader');
+    phaseHeader(phaseBase + 6, 'Install Global Loader');
     installGlobalLoader();
   }
 
-  // Summary
-  header('HelmCode Installed!');
-  console.log('');
-  console.log(`  Skills:    ${presetConfig.skills.length} installed`);
-  console.log(`  Standards: ${standardsCount} files`);
-  console.log('');
-  console.log('  Usage:');
-  console.log('    /dev-flow    — Goal-driven workflow (clarify → /goal → checkpoint)');
-  console.log('    /clarify     — Break down requirements into behavior contract');
-  console.log('    /checkpoint  — Review judgment log decisions');
-  console.log('');
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  // Write version stamp
+  writeVersionStamp(projectDir, getHelmcodeVersion(), detectInstallMethod(), preset);
+
+  // Summary (skip when called from update — update prints its own summary)
+  if (!quiet) {
+    header('HelmCode Installed!');
+    console.log('');
+    console.log(`  Version:   v${getHelmcodeVersion()}`);
+    console.log(`  Skills:    ${presetConfig.skills.length} installed`);
+    console.log(`  Standards: ${standardsCount} files`);
+    console.log('');
+    console.log('  Usage:');
+    console.log('    /dev-flow    — Goal-driven workflow (clarify → /goal → checkpoint)');
+    console.log('    /clarify     — Break down requirements into behavior contract');
+    console.log('    /checkpoint  — Review judgment log decisions');
+    console.log('');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  }
 }
 
 // ── Status ───────────────────────────────────────────────
@@ -656,8 +861,20 @@ export async function status(options) {
   const skillsDir = join(claudeDir, 'skills');
   const standardsDir = join(claudeDir, 'standards');
 
+  const currentVersion = getHelmcodeVersion();
+  const installMethod = detectInstallMethod();
+  const stamp = readVersionStamp(projectDir);
+
   header('HelmCode Status');
-  console.log(`  Project: ${projectDir}`);
+  console.log(`  Source:      ${HELMCODE_HOME}`);
+  console.log(`  Install:    ${installMethod}`);
+  console.log(`  Version:    v${currentVersion}`);
+  if (stamp) {
+    console.log(`  Installed:  v${stamp.version} (${stamp.preset}, ${new Date(stamp.installedAt).toLocaleDateString()})`);
+  } else {
+    console.log('  Installed:  unknown (installed before version tracking)');
+  }
+  console.log(`  Project:    ${projectDir}`);
   console.log('');
 
   if (!existsSync(claudeDir)) {
@@ -665,6 +882,20 @@ export async function status(options) {
     log('ℹ', 'Run "helmcode install" to install');
     return;
   }
+
+  // Check for updates
+  const latestInfo = await fetchLatestVersion(installMethod);
+  if (latestInfo.latestVersion) {
+    const cmp = compareSemver(currentVersion, latestInfo.latestVersion);
+    if (cmp < 0) {
+      log('⬆', `Update available: v${currentVersion} → v${latestInfo.latestVersion} (run: helmcode update)`);
+    } else {
+      log('✓', `Up to date (v${currentVersion})`);
+    }
+  } else {
+    log('ℹ', 'Could not check for updates (offline or registry unavailable)');
+  }
+  console.log('');
 
   // Check skills
   if (existsSync(skillsDir)) {
@@ -719,7 +950,9 @@ export async function status(options) {
 // ── List ─────────────────────────────────────────────────
 
 export async function list() {
-  header('HelmCode Available Presets');
+  const currentVersion = getHelmcodeVersion();
+  const installMethod = detectInstallMethod();
+  header(`HelmCode Available Presets (v${currentVersion}, ${installMethod})`);
   console.log('');
   for (const [name, config] of Object.entries(PRESETS)) {
     console.log(`  ${name}:`);
@@ -729,14 +962,77 @@ export async function list() {
   }
 }
 
+// ── Version ──────────────────────────────────────────────
+
+export async function version() {
+  const v = getHelmcodeVersion();
+  const method = detectInstallMethod();
+  console.log(`HelmCode v${v}`);
+  console.log(`  Install method: ${method}`);
+  console.log(`  Source path:    ${HELMCODE_HOME}`);
+  console.log(`  Node.js:        ${process.version}`);
+}
+
 // ── Update ───────────────────────────────────────────────
 
 export async function update(options) {
   const projectDir = resolve(options.project || process.cwd());
   const preset = options.preset || detectPreset(projectDir);
+  const method = detectInstallMethod();
+  const currentVersion = getHelmcodeVersion();
 
-  log('ℹ', `Updating HelmCode (preset: ${preset}) in ${projectDir}`);
+  header('HelmCode Update');
+  console.log(`  Source:      ${HELMCODE_HOME}`);
+  console.log(`  Install:    ${method}`);
+  console.log(`  Version:    v${currentVersion}`);
+  console.log(`  Project:    ${projectDir}`);
+  console.log('');
 
-  // Update is just reinstall with --force
-  await install({ preset, project: projectDir, force: true, globalLoader: options.globalLoader });
+  // Step 1: Self-update (pull latest source)
+  if (!options.noSelfUpdate) {
+    phaseHeader(1, 'Check for Updates');
+
+    const latestInfo = await fetchLatestVersion(method);
+
+    if (latestInfo.latestVersion === null) {
+      log('⚠', 'Could not check for updates (offline or registry unavailable)');
+      log('ℹ', 'Reinstalling project files from current source...');
+    } else {
+      const cmp = compareSemver(currentVersion, latestInfo.latestVersion);
+
+      if (cmp < 0) {
+        log('⬆', `New version available: v${currentVersion} → v${latestInfo.latestVersion}`);
+        log('ℹ', `Updating source via ${method}...`);
+
+        const success = selfUpdate(method);
+
+        if (success) {
+          const newVersion = getHelmcodeVersion();
+          log('✓', `Source updated: v${currentVersion} → v${newVersion}`);
+        } else {
+          log('⚠', `Source update failed. Reinstalling from current version v${currentVersion}`);
+        }
+      } else {
+        log('✓', `Already on latest version (v${currentVersion})`);
+        log('ℹ', 'Reinstalling project files...');
+      }
+    }
+  } else {
+    phaseHeader(1, 'Self-Update (skipped)');
+    log('ℹ', 'Skipping source update (--no-self-update)');
+    log('ℹ', 'Reinstalling project files from current source...');
+  }
+
+  // Step 2: Reinstall to project (phase numbers continue from 2)
+  phaseHeader(2, 'Reinstall Project Files');
+  await install({ preset, project: projectDir, force: true, globalLoader: options.globalLoader, quiet: true, phaseOffset: 2 });
+
+  // Summary
+  const newVersion = getHelmcodeVersion();
+  header('HelmCode Updated!');
+  console.log('');
+  console.log(`  Version:   v${newVersion}`);
+  console.log(`  Preset:    ${preset}`);
+  console.log('');
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 }

@@ -11,7 +11,7 @@ description: |
 
   特性：按 preset 安装，每个 skill 自带 references（模板、规范、启发规则）。
   利用 Claude Code 的 /goal 机制驱动自主执行闭环。
-version: 2.0.3
+version: 2.1.0
 author: HelmCode
 tags: [loader, init, 安装, HelmCode, goal]
 ---
@@ -210,9 +210,10 @@ Phase 6: 安装全局 Loader（可选）
 | 命令 | 说明 |
 |------|------|
 | `install` | 安装 HelmCode 到项目（默认命令） |
-| `status` | 显示已安装状态（只读） |
-| `update` | 更新已安装内容 |
+| `status` | 显示已安装状态、版本信息和更新检查（只读） |
+| `update` | 拉取最新版本并重新安装项目文件 |
 | `list` | 列出可用 preset 和 skills（只读） |
+| `version` | 显示 HelmCode 版本和安装方式（只读） |
 
 ### 选项
 
@@ -222,6 +223,8 @@ Phase 6: 安装全局 Loader（可选）
 | `--project /path` | 目标项目目录（默认当前目录） |
 | `--force` | 跳过确认，直接执行 |
 | `--global-loader` | 同时安装全局 helmcode-loader skill |
+| `--no-self-update` | 跳过源码更新，仅重新安装项目文件 |
+| `--version, -v` | 显示版本 |
 | `--help, -h` | 显示帮助 |
 
 ---
@@ -316,12 +319,51 @@ cp "$HELMCODE_HOME/commands/"*.md ".claude/commands/"
 
 ---
 
-## 更新逻辑
+## 更新逻辑（自更新）
 
-`--update` 时：
+`helmcode update` 执行两步操作：
+
+### Step 1: 源码自更新
+
+根据安装方式自动拉取最新 HelmCode 源码：
+
+| 安装方式 | 自更新行为 |
+|----------|-----------|
+| `npm-global` | 执行 `npm update -g helmcode` |
+| `npm-local` | 执行 `npm update helmcode` |
+| `git-clone` | 执行 `git pull origin <current-branch>` |
+| `npx` | 无法自更新，提示使用 `npx helmcode@latest install` |
+| `unknown` | 显示手动更新指引 |
+
+自更新前会检查远程最新版本：
+- npm 安装 → 查询 `registry.npmjs.org/helmcode/latest`
+- git 安装 → 查询 GitHub Releases API 或 `git ls-remote --tags`
+- 若已是最新版本，跳过源码更新，仅重新安装项目文件
+- 若网络不可达，跳过源码更新，从当前源重新安装
+
+使用 `--no-self-update` 可跳过 Step 1，仅执行 Step 2。
+
+### Step 2: 重新安装项目文件
+
 - Skills/standards：直接覆盖（这些是标准化的）
 - CLAUDE.md：追加，不覆盖项目自定义内容
 - contracts/briefs/judgment-logs：不覆盖（项目特定内容）
+- 写入 `.claude/.helmcode-version` 记录安装版本和方法
+
+### 版本追踪
+
+每次 `install` 或 `update` 会写入 `.claude/.helmcode-version`：
+
+```json
+{
+  "version": "2.0.3",
+  "installMethod": "git-clone",
+  "preset": "java-ddd",
+  "installedAt": "2026-06-02T10:30:00.000Z"
+}
+```
+
+`status` 命令读取此文件显示已安装版本，并与远程最新版本对比检查更新。
 
 ---
 
@@ -350,16 +392,28 @@ cp "$HELMCODE_HOME/commands/"*.md ".claude/commands/"
 /helmcode-loader --preset java-ddd
 ```
 
-### 查看已安装状态
+### 查看已安装状态和版本
 
 ```
 /helmcode-loader --status
 ```
 
-### 更新
+### 更新（自动拉取最新版本）
 
 ```
 /helmcode-loader --update
+```
+
+### 仅重新安装项目文件（不更新源码）
+
+```
+/helmcode-loader --update --no-self-update
+```
+
+### 查看版本信息
+
+```
+/helmcode-loader --version
 ```
 
 ---
@@ -368,6 +422,7 @@ cp "$HELMCODE_HOME/commands/"*.md ".claude/commands/"
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v2.1.0 | 2026-06-02 | 新增：`update` 自更新（自动从 GitHub/npm 拉取最新版本）、`version` 命令、`--no-self-update` 选项、版本追踪（`.claude/.helmcode-version`）、`status` 增强（版本+更新检查）、`list` 显示版本 |
 | v2.0.3 | 2026-06-01 | 修复：install.sh 与 install.mjs 对齐，补充 init-java-ddd、scripts/commands 安装、项目约定扫描、status/update/list 子命令、--global-loader 选项 |
 | v3.0 | 2026-05-26 | 集成 /goal：从手动串联改为 goal 驱动自主闭环 |
 | v2.0 | 2026-05-14 | 重构为 HelmCode：行为契约 + 判断日志，替代 L1-L4 |
