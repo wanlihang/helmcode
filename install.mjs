@@ -686,7 +686,7 @@ export async function status(options) {
   }
 
   // Check directories
-  for (const dir of ['contracts', 'briefs', 'judgment-logs']) {
+  for (const dir of ['contracts', 'briefs', 'judgment-logs', 'scripts', 'commands']) {
     if (existsSync(join(claudeDir, dir))) {
       log('✓', `.claude/${dir}/`);
     } else {

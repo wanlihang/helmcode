@@ -1,7 +1,7 @@
 // HelmCode Demo slice — safe to delete after onboarding
 package {{basePackage}}.acts.test.blacklist.checkEmail;
 
-import {{basePackage}}.facade.blacklist.BlacklistFacade;
+import {{basePackage}}.facade.blacklist.BlacklistQueryFacade;
 import {{basePackage}}.servicetest.base.{{AppName}}ActsTestBase;
 import com.alipay.test.acts.annotation.TestBean;
 import com.alipay.test.acts.annotation.acts.AutoFill;
@@ -12,12 +12,13 @@ import com.alipay.test.acts.runtime.ActsRuntimeContext;
 import org.testng.annotations.Test;
 
 /**
- * BlacklistFacade.checkEmail 的 ACTS 集成测试样例。
+ * BlacklistQueryFacade.checkEmail 的 ACTS 集成测试样例。
  *
- * 严格遵循 STANDARD(<HELMCODE_HOME>/standards/java-ddd/patterns/test.md):
+ * 严格遵循 STANDARD(standards/java-ddd/test-standards.md):
  *   - 路径:src/test/java/{{basePackagePath}}/acts/test/{facadeName}/{methodName}/
- *   - 用例数据:同名子目录 case01_success/caseObjs.yaml(7 段式)
+ *   - 用例数据:同名子目录 caseNN_description/caseObjs.yaml(7 段式)
  *   - 命名:类名 = {MethodName}ActsTest;方法名同 facade 方法名
+ *   - 场景覆盖:case01 正常路径、case02 参数校验、case03 依赖失败、case04 业务错误
  *
  * 跑通前提:
  *   1. zdal 配置可连通 dev DDS,email_blacklist 表已建
@@ -26,7 +27,7 @@ import org.testng.annotations.Test;
 public class CheckEmailActsTest extends {{AppName}}ActsTestBase {
 
     @TestBean
-    protected BlacklistFacade blacklistFacade;
+    protected BlacklistQueryFacade blacklistQueryFacade;
 
     @Test(dataProvider = "ActsDataProvider")
     @AutoFill(overwrite = false, sqlList = {})
@@ -42,8 +43,23 @@ public class CheckEmailActsTest extends {{AppName}}ActsTestBase {
     }
 
     @PrepareCase(".*case01.*")
-    public void p01(ActsRuntimeContext actsRuntimeContext) {
-        // case01 专用准备:可在此写 PrepareDBData、ReflectionTestUtils mock 等
+    public void prepareCase01(ActsRuntimeContext actsRuntimeContext) {
+        // case01 正常路径:数据库中无黑名单记录,检查结果应为 false
+    }
+
+    @PrepareCase(".*case02.*")
+    public void prepareCase02(ActsRuntimeContext actsRuntimeContext) {
+        // case02 参数校验失败:空邮箱地址,BizTemplate 自动拦截
+    }
+
+    @PrepareCase(".*case03.*")
+    public void prepareCase03(ActsRuntimeContext actsRuntimeContext) {
+        // case03 外部依赖失败:mock DB 异常,验证系统异常包装
+    }
+
+    @PrepareCase(".*case04.*")
+    public void prepareCase04(ActsRuntimeContext actsRuntimeContext) {
+        // case04 业务规则错误:非法邮箱格式(无@),BizTemplate 自动拦截
     }
 
     @Override

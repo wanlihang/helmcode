@@ -1,0 +1,27 @@
+// HelmCode Demo slice — safe to delete after onboarding
+package {{basePackage}}.facade.blacklist;
+
+import {{basePackage}}.facade.blacklist.model.query.BlacklistCheckRequest;
+import {{basePackage}}.facade.blacklist.model.query.BlacklistQueryRequest;
+import {{basePackage}}.facade.blacklist.model.vo.BlacklistVO;
+import com.mycm.common.model.base.Result;
+import com.mycm.common.model.paging.Paginator;
+
+import javax.validation.Valid;
+
+/**
+ * 邮箱黑名单查询 Facade(读操作契约)。
+ * 实现位于 application 模块,通过 @RpcProvider 暴露为 SOFA RPC。
+ */
+public interface BlacklistQueryFacade {
+
+    /**
+     * 检查邮箱是否在黑名单中。
+     */
+    Result<Boolean> checkEmail(@Valid BlacklistCheckRequest request);
+
+    /**
+     * 分页查询黑名单(管理后台用)。
+     */
+    Result<Paginator<BlacklistVO>> listByPage(@Valid BlacklistQueryRequest request);
+}

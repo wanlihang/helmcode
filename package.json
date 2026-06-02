@@ -11,7 +11,6 @@
     "core",
     "scripts",
     "standards",
-    "templates",
     "loader",
     "install.mjs",
     "install.sh"

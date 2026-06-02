@@ -1,6 +1,6 @@
 # 反模式速查
 
-`init-java-ddd` 在生成模板时已主动剔除以下 8 类反模式。审查 PR / 接入新代码时,请对照确认。
+`init-java-ddd` 在生成模板时已主动剔除以下 11 类反模式。审查 PR / 接入新代码时,请对照确认。
 
 | #   | 反模式                                                         | 为什么不要                                                                | 正确做法                                                        |
 |-----|-------------------------------------------------------------|----------------------------------------------------------------------|-------------------------------------------------------------|
@@ -12,6 +12,9 @@
 | 6   | 每个 Java 类顶部一段 `@author wb-xxxx / @version Xxx.java, v 0.1 ...` | 99% 是模板留下来的,作者已离职;git blame 是更权威的 SoT                              | 不写 `@author` / `@version`                                  |
 | 7   | Facade 内 `try { ... } catch (Exception e) { return ...; }` 把 MycmBizException 也吃掉 | 业务异常被吞,调用方拿到模糊的"SYSTEM_ERROR"无从排查;BizTemplate 已统一兜底,手写 catch 是绕开规范 | facade 不写 try/catch,统一走 `bizTemplate.doProcess(req, () -> ...)`,业务异常抛 `MycmBizException(ErrorCodeEnum.X, msg)` 透传 |
 | 8   | Repository 实现里 `throw e;` 或直接 `throw new RuntimeException(e)` | 业务/系统异常类型丢失,Facade 层无法做差异化兜底                                     | 业务校验抛 `MycmBizException`,IO/SQL 异常抛 `MycmSysException` |
+| 9   | `logging.path=/home/admin/logs` 硬编码无 fallback | 本地 Mac/Linux dev 启动刷一屏 mkdir 失败;IntelliJ Run Configuration 默认不导 `LOG_PATH`,仍会刷噪音 | `logging.path=${LOG_PATH:${java.io.tmpdir}/logs/{{appName}}}`——本地默认走 `${java.io.tmpdir}`,生产由发布平台注入 `LOG_PATH=/home/admin/logs` 覆盖 |
+| 10  | `sofa.mist.*` 与业务 `mist_tenant` 混淆,或遗漏 `sofa.mist.tenant=ALIPAY` 硬编码 | `sofa.mist.tenant` 由 SOFA 框架 `MistAutoConfiguration` 读取,与业务 `mist_tenant` 是两组不同的 key。`--with-web=true` 时缺 `sofa.mist.tenant` 启动直接炸 `IllegalArgumentException` | 平台默认值(`sofa.mist.tenant=ALIPAY`、`sofa.mist.enabled=false`、`sofa.buservice.enabled=false`)所有应用都一样,必须由模板硬编码;应用绑定值(`mist_tenant`、`antkms_tenant_id`)每个应用独占,保留 TODO |
+| 11  | 用 `@ConditionalOnProperty` / `spring.autoconfigure.exclude` 给"外部资源未申请"造 escape hatch | 应用跑不了真业务(切片整体被禁),只是把"启动报错"换成"运行报 `NoSuchBeanDefinitionException`";90% 用户会一直挂着 `=false` 不去申请资源,骨架失去示范价值;报错信号被掩盖 | 让启动期错误显式抛出,在 `.helmcode-todo.md` + 终端打印 checklist 告诉用户申请顺序;`ZdalConfiguration.java` 里 `.version("REPLACE_WITH_DDS_VERSION")` 必须留字面量让 ZDAL 硬抛错 |
 
 ## 红线之外的"软性建议"
 
@@ -25,5 +28,5 @@
 ## 强制执行机制
 
 1. CI 中接入 `scripts/verify-arch-rules.mjs`,对反模式 #1、#2、#3、#6 做静态扫描。
-2. PR 模板的"Self-check"区块罗列 8 条,要求 reviewer 与 author 各打钩。
-3. CLAUDE.md §2 把 #1~#10 列为红线,违反 = block-merge。
+2. PR 模板的"Self-check"区块罗列 11 条,要求 reviewer 与 author 各打钩。
+3. CLAUDE.md §2 把 #1~#11 列为红线,违反 = block-merge。

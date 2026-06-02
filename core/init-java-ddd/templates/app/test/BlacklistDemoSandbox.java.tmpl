@@ -1,13 +1,14 @@
 // HelmCode Demo slice — safe to delete after onboarding
 package {{basePackage}}.servicetest.base;
 
-import {{basePackage}}.facade.blacklist.BlacklistFacade;
-import {{basePackage}}.facade.blacklist.command.BlacklistAddCommand;
-import {{basePackage}}.facade.blacklist.command.BlacklistBatchAddCommand;
-import {{basePackage}}.facade.blacklist.command.BlacklistRemoveCommand;
-import {{basePackage}}.facade.blacklist.request.BlacklistCheckRequest;
-import {{basePackage}}.facade.blacklist.request.BlacklistQueryRequest;
-import {{basePackage}}.facade.blacklist.vo.BlacklistVO;
+import {{basePackage}}.facade.blacklist.BlacklistManageFacade;
+import {{basePackage}}.facade.blacklist.BlacklistQueryFacade;
+import {{basePackage}}.facade.blacklist.model.command.BlacklistAddCommand;
+import {{basePackage}}.facade.blacklist.model.command.BlacklistBatchAddCommand;
+import {{basePackage}}.facade.blacklist.model.command.BlacklistRemoveCommand;
+import {{basePackage}}.facade.blacklist.model.query.BlacklistCheckRequest;
+import {{basePackage}}.facade.blacklist.model.query.BlacklistQueryRequest;
+import {{basePackage}}.facade.blacklist.model.vo.BlacklistVO;
 import com.alibaba.fastjson.JSON;
 import com.mycm.common.model.base.Result;
 import com.mycm.common.model.paging.Paginator;
@@ -16,7 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import java.util.Arrays;
 
 /**
- * BlacklistFacade 手工调试沙箱(对齐 mycmbillmanage 的 PengPengDaWang 风格)。
+ * Blacklist 手工调试沙箱(对齐 mycmbillmanage 的 PengPengDaWang 风格)。
  *
  * 命名刻意不以 Test.java 结尾,因此默认不会被 surefire 抓到执行;
  * 也不依赖 JUnit/TestNG 注解,只在方法上挂 //@Test 占位,IDE 右键单跑即可。
@@ -30,13 +31,16 @@ import java.util.Arrays;
 public class BlacklistDemoSandbox extends AbstractTestBase {
 
     @Autowired
-    private BlacklistFacade blacklistFacade;
+    private BlacklistManageFacade blacklistManageFacade;
+
+    @Autowired
+    private BlacklistQueryFacade blacklistQueryFacade;
 
     //@Test
     public void testCheckEmail_Success() {
         BlacklistCheckRequest request = new BlacklistCheckRequest();
         request.setEmail("demo-" + System.currentTimeMillis() + "@example.com");
-        Result<Boolean> result = blacklistFacade.checkEmail(request);
+        Result<Boolean> result = blacklistQueryFacade.checkEmail(request);
         System.out.println(JSON.toJSONString(result));
     }
 
@@ -46,7 +50,7 @@ public class BlacklistDemoSandbox extends AbstractTestBase {
         command.setEmailAddress("demo-" + System.currentTimeMillis() + "@example.com");
         command.setModifier("demo-sandbox");
         command.setRemark("demo sandbox sample");
-        Result<Void> result = blacklistFacade.addBlacklist(command);
+        Result<Void> result = blacklistManageFacade.addBlacklist(command);
         System.out.println(JSON.toJSONString(result));
     }
 
@@ -55,7 +59,7 @@ public class BlacklistDemoSandbox extends AbstractTestBase {
         BlacklistRemoveCommand command = new BlacklistRemoveCommand();
         command.setId(1L);
         command.setModifier("demo-sandbox");
-        Result<Void> result = blacklistFacade.removeBlacklist(command);
+        Result<Void> result = blacklistManageFacade.removeBlacklist(command);
         System.out.println(JSON.toJSONString(result));
     }
 
@@ -66,7 +70,7 @@ public class BlacklistDemoSandbox extends AbstractTestBase {
                 .pageSize(20)
                 .emailAddress("example.com")
                 .build();
-        Result<Paginator<BlacklistVO>> result = blacklistFacade.listByPage(request);
+        Result<Paginator<BlacklistVO>> result = blacklistQueryFacade.listByPage(request);
         System.out.println(JSON.toJSONString(result));
     }
 
@@ -79,7 +83,7 @@ public class BlacklistDemoSandbox extends AbstractTestBase {
         ));
         command.setModifier("demo-sandbox");
         command.setRemark("demo batch sample");
-        Result<Void> result = blacklistFacade.batchAddBlacklist(command);
+        Result<Void> result = blacklistManageFacade.batchAddBlacklist(command);
         System.out.println(JSON.toJSONString(result));
     }
 }

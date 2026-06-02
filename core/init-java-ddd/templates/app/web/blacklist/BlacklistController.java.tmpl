@@ -1,12 +1,13 @@
 // HelmCode Demo slice — safe to delete after onboarding
 package {{basePackage}}.web.blacklist;
 
-import {{basePackage}}.facade.blacklist.BlacklistFacade;
-import {{basePackage}}.facade.blacklist.command.BlacklistAddCommand;
-import {{basePackage}}.facade.blacklist.command.BlacklistRemoveCommand;
-import {{basePackage}}.facade.blacklist.request.BlacklistCheckRequest;
-import {{basePackage}}.facade.blacklist.request.BlacklistQueryRequest;
-import {{basePackage}}.facade.blacklist.vo.BlacklistVO;
+import {{basePackage}}.facade.blacklist.BlacklistManageFacade;
+import {{basePackage}}.facade.blacklist.BlacklistQueryFacade;
+import {{basePackage}}.facade.blacklist.model.command.BlacklistAddCommand;
+import {{basePackage}}.facade.blacklist.model.command.BlacklistRemoveCommand;
+import {{basePackage}}.facade.blacklist.model.query.BlacklistCheckRequest;
+import {{basePackage}}.facade.blacklist.model.query.BlacklistQueryRequest;
+import {{basePackage}}.facade.blacklist.model.vo.BlacklistVO;
 import com.mycm.common.model.base.Result;
 import com.mycm.common.model.paging.Paginator;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,32 +21,35 @@ import javax.validation.Valid;
 
 /**
  * 邮箱黑名单 HTTP 入口(便于本地调试 /healthcheck 之外的链路)。
- * 真正的对外契约是 BlacklistFacade(RPC)。
+ * 真正的对外契约是 BlacklistManageFacade / BlacklistQueryFacade(RPC)。
  */
 @RestController
 @RequestMapping("/api/blacklist")
 public class BlacklistController {
 
     @Autowired
-    private BlacklistFacade blacklistFacade;
+    private BlacklistManageFacade blacklistManageFacade;
+
+    @Autowired
+    private BlacklistQueryFacade blacklistQueryFacade;
 
     @PostMapping("/check")
     public Result<Boolean> check(@Valid @RequestBody BlacklistCheckRequest request) {
-        return blacklistFacade.checkEmail(request);
+        return blacklistQueryFacade.checkEmail(request);
     }
 
     @PostMapping("/add")
     public Result<Void> add(@Valid @RequestBody BlacklistAddCommand command) {
-        return blacklistFacade.addBlacklist(command);
+        return blacklistManageFacade.addBlacklist(command);
     }
 
     @PostMapping("/remove")
     public Result<Void> remove(@Valid @RequestBody BlacklistRemoveCommand command) {
-        return blacklistFacade.removeBlacklist(command);
+        return blacklistManageFacade.removeBlacklist(command);
     }
 
     @GetMapping("/list")
     public Result<Paginator<BlacklistVO>> list(@Valid BlacklistQueryRequest request) {
-        return blacklistFacade.listByPage(request);
+        return blacklistQueryFacade.listByPage(request);
     }
 }

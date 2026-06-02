@@ -20,7 +20,7 @@
 | DO | @Data（审计字段内联声明，不继承基类）| extends 任何基类 |
 | Request/Command/Query | @Data（extends BaseRequest 时加 @EqualsAndHashCode(callSuper=true)）| - |
 | Facade 实现 | @RpcProvider 或 @SofaService | @Service（单独使用） |
-| Facade 方法 | @FacadeIntercept(loggerName = LoggerDef.BIZ_SERVICE_LOGGER) | - |
+| Facade 方法 | @FacadeIntercept(loggerName = MycmLoggerDef.FACADE_SERVICE_LOGGER) | - |
 | Application Service | @Service | - |
 | Repository 实现 | @Repository | - |
 | 领域层 | - | @Slf4j（禁止日志） |
@@ -54,7 +54,7 @@
 | Aggregate Root | {Business}Aggregator | OrderAggregator |
 | Repository 接口 | {Entity}Repository | OrderRepository |
 | Repository 实现 | {Entity}RepositoryImpl | OrderRepositoryImpl |
-| Domain Service | {Business}DomainService | OrderDomainService |
+| Domain Service | {Business}Service | OrderService |
 | Facade(管理) | {Business}ManageFacade | OrderManageFacade |
 | Facade(查询) | {Business}QueryFacade | OrderQueryFacade |
 | Facade 实现 | {Business}ManageFacadeImpl | OrderManageFacadeImpl |
@@ -86,7 +86,7 @@
 - 返回值必须使用 Result\<T\> 包装
 - 使用 BizTemplate.doProcess() 构建返回值（默认方式）
 - 查询接口返回 Result\<Paginator\<T\>\> 分页
-- 每个 Facade 方法必须有 @FacadeIntercept(loggerName = LoggerDef.BIZ_SERVICE_LOGGER) 注解
+- 每个 Facade 方法必须有 @FacadeIntercept(loggerName = MycmLoggerDef.FACADE_SERVICE_LOGGER) 注解
 - 禁止在 Facade 层处理业务逻辑
 
 ## 7. 外部集成
@@ -110,13 +110,13 @@
 
 | Logger 名称 | 使用层 | 用途 |
 |------------|-------|------|
-| LoggerDef.BIZ_SERVICE_LOGGER | Facade | @FacadeIntercept 参数 |
+| MycmLoggerDef.FACADE_SERVICE_LOGGER | Facade | @FacadeIntercept 参数 |
 | BIZ-SERVICE-LOGGER | Application | 业务日志 |
 | LoggerDef.SAL_DETAIL_LOGGER | Integration | @SalLog 参数 |
 | 领域层 | 禁止 | 不可使用日志 |
 
 - 使用 @Slf4j（领域层除外）
-- Facade 拦截：@FacadeIntercept(loggerName = LoggerDef.BIZ_SERVICE_LOGGER)
+- Facade 拦截：@FacadeIntercept(loggerName = MycmLoggerDef.FACADE_SERVICE_LOGGER)
 - 集成调用：@SalLog(loggerName = LoggerDef.SAL_DETAIL_LOGGER)
 - Mapper 调用：@DalLog
 - 禁止在日志中记录敏感数据

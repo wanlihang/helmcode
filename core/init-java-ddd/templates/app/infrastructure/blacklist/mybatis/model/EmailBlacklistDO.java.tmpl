@@ -1,16 +1,15 @@
 // HelmCode Demo slice — safe to delete after onboarding
 package {{basePackage}}.infrastructure.blacklist.mybatis.model;
 
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
 
 import java.util.Date;
 
 /**
  * 邮箱黑名单数据对象,对应表 email_blacklist。
+ * DO 默认使用 @Data,审计字段内联声明,不继承基类。
  */
-@Getter
-@Setter
+@Data
 public class EmailBlacklistDO {
 
     private Long id;

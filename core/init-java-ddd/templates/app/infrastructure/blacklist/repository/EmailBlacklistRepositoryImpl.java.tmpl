@@ -10,8 +10,7 @@ import {{basePackage}}.infrastructure.blacklist.mybatis.model.EmailBlacklistDO;
 import com.mycm.common.model.exception.ErrorCodeEnum;
 import com.mycm.common.model.exception.MycmBizException;
 import com.mycm.common.model.exception.MycmSysException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
@@ -25,10 +24,9 @@ import java.util.List;
  *  2. 校验失败抛 MycmBizException(...DATA_VALIDATE_ERROR),不混淆;
  *  3. 转换全程走 MapStruct,不允许任何 BeanUtils.copyProperties。
  */
+@Slf4j
 @Repository
 public class EmailBlacklistRepositoryImpl implements EmailBlacklistRepository {
-
-    private static final Logger log = LoggerFactory.getLogger(EmailBlacklistRepositoryImpl.class);
 
     @Autowired
     private EmailBlacklistDOMapper emailBlacklistDOMapper;

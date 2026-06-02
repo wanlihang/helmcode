@@ -1,0 +1,67 @@
+// HelmCode Demo slice — safe to delete after onboarding
+package {{basePackage}}.application.blacklist.facade;
+
+import com.alipay.sofa.rpc.api.annotation.RpcProvider;
+import {{basePackage}}.application.blacklist.convert.BlacklistVoConvert;
+import {{basePackage}}.domain.blacklist.model.EmailBlacklist;
+import {{basePackage}}.domain.blacklist.service.EmailBlacklistService;
+import {{basePackage}}.facade.blacklist.BlacklistQueryFacade;
+import {{basePackage}}.facade.blacklist.model.query.BlacklistCheckRequest;
+import {{basePackage}}.facade.blacklist.model.query.BlacklistQueryRequest;
+import {{basePackage}}.facade.blacklist.model.vo.BlacklistVO;
+import {{basePackage}}.infrastructure.log.MycmLoggerDef;
+import com.mycm.common.component.template.BizTemplate;
+import com.mycm.common.component.log.annotation.FacadeIntercept;
+import com.mycm.common.model.base.Result;
+import com.mycm.common.model.paging.Paginator;
+import org.springframework.beans.factory.annotation.Autowired;
+
+import javax.validation.Valid;
+import java.util.List;
+
+/**
+ * BlacklistQueryFacade 实现(application 层)。
+ *
+ * 规范要点(与 standards/java-ddd/standards.md 一致):
+ *  1. **统一走 BizTemplate.doProcess**:异常捕获、参数校验、Result 包装全部由模板兜底;
+ *  2. VO 转换走 BlacklistVoConvert(MapStruct),不允许使用 BeanUtils.copyProperties;
+ *  3. 日志由 @FacadeIntercept 统一打印入参/出参/耗时。
+ */
+@RpcProvider
+public class BlacklistQueryFacadeImpl implements BlacklistQueryFacade {
+
+    @Autowired
+    private EmailBlacklistService emailBlacklistService;
+
+    @Autowired
+    private BizTemplate bizTemplate;
+
+    @Override
+    @FacadeIntercept(loggerName = MycmLoggerDef.FACADE_SERVICE_LOGGER)
+    public Result<Boolean> checkEmail(@Valid BlacklistCheckRequest request) {
+        return bizTemplate.doProcess(request,
+                () -> emailBlacklistService.isBlacklisted(request.getEmail()));
+    }
+
+    @Override
+    @FacadeIntercept(loggerName = MycmLoggerDef.FACADE_SERVICE_LOGGER)
+    public Result<Paginator<BlacklistVO>> listByPage(@Valid BlacklistQueryRequest request) {
+        return bizTemplate.doProcess(request, () -> {
+            List<EmailBlacklist> blacklistList = emailBlacklistService.listByPage(
+                    request.getPageNum(),
+                    request.getPageSize(),
+                    request.getEmailAddress());
+
+            long total = emailBlacklistService.countByCondition(request.getEmailAddress());
+            List<BlacklistVO> voList = BlacklistVoConvert.INSTANCE.toVoList(blacklistList);
+
+            Paginator<BlacklistVO> paginator = new Paginator<>();
+            paginator.setPage(request.getPageNum());
+            paginator.setItems((int) total);
+            paginator.setItemsPerPage(request.getPageSize());
+            paginator.setData(voList);
+            paginator.setHasNext(request.getPageNum() < (int) Math.ceil((double) total / request.getPageSize()));
+            return paginator;
+        });
+    }
+}

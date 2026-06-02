@@ -65,6 +65,9 @@ tags: [implement, 代码生成, 判断日志, goal-worker]
 | 写操作（create/update/delete） | `.claude/standards/patterns/application-service.md` |
 | 多类型/多渠道/多策略 | `.claude/standards/patterns/strategy.md` |
 | 复杂构造逻辑 | `.claude/standards/patterns/builder.md` |
+| 领域事件 | `.claude/standards/patterns/domain-event.md` |
+| 外部集成客户端 | `.claude/standards/patterns/integration-client.md` |
+| 测试代码 | `.claude/standards/patterns/test.md` |
 
 **第三层：参考代码（Subagent 读取）**
 

@@ -165,7 +165,8 @@ your-project/
 │   │   ├── clarify/SKILL.md + references/
 │   │   ├── implement/SKILL.md + references/
 │   │   ├── verify/SKILL.md
-│   │   └── analyze/SKILL.md
+│   │   ├── analyze/SKILL.md
+│   │   └── init-java-ddd/SKILL.md + references/ + templates/ + claude-md/
 │   ├── standards/                     # Coding standards
 │   │   ├── standards.md
 │   │   ├── project-conventions.md     # Auto-detected overrides
@@ -229,9 +230,9 @@ INIT → DATA_PREPARED → PROCESSING → WAIT_CONFIRM → COMPLETED
 ## CLI Reference
 
 ```bash
-helmcode install [--preset java-ddd|minimal] [--project dir] [--force]
+helmcode install [--preset java-ddd|minimal] [--project dir] [--force] [--global-loader]
 helmcode status [--project dir]
-helmcode update [--project dir]
+helmcode update [--project dir] [--global-loader]
 helmcode list
 ```
 
