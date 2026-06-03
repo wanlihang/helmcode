@@ -223,22 +223,30 @@ app/facade/src/main/java/{{basePackagePath}}/facade/.gitkeep
 
 > Demo 切片(Phase 7)会向这些目录写文件,与 `.gitkeep` 共存,**不要删 `.gitkeep`**——用户删 Demo 后空目录还在。
 
-### Phase 5b: app/test 集成测试模块(`--with-test=true` 时,8 个基础文件)
+### Phase 5b: app/test 集成测试模块(`--with-test=true` 时,9 个基础文件)
 
 对齐 mycmbillmanage 现状:JUnit 5 与 ACTS/TestNG 双轨支持。`AbstractTestBase` 走 JUnit 5,
-`{{AppName}}ActsTestBase` 走 TestNG + ACTS yaml 用例。surefire 默认 `<skipTests>${isSkipIntegrationTest}</skipTests>`,
-本地/CI 默认跳过(`isSkipIntegrationTest=true`),需要回归时本地 `mvn -pl app/test test -DisSkipIntegrationTest=false` 强制执行。
+`{{AppName}}ActsTestBase` 走 TestNG + ACTS yaml 用例。
 
-**例外**:`BootContextSmokeTest` 是装配冒烟测试,**不挂 isSkipIntegrationTest 后面** —— 它在每次 CI 都跑,
-拦"接口缺 stub impl / @Resource 命中错 bean / bean 名碰撞"等启动期才暴露的问题。详见反模式 #14。
+**surefire 拆分为 strict/lenient 两组 execution**(详见 `templates/app/test/pom.xml.tmpl`):
+
+| Execution | 触发 | skipTests | testFailureIgnore | 跑哪些测试 |
+|---|---|---|---|---|
+| **strict**(`test-arch-and-smoke`) | 每次 mvn test 必跑 | `false`(永远跑) | `false`(失败即挂) | `servicetest/architecture/*Test.java` + `servicetest/smoke/*Test.java` |
+| **lenient**(默认 + `test-testng`) | `mvn test -DisSkipIntegrationTest=false` | `${isSkipIntegrationTest}`(默认 true) | `true`(失败不挂) | 业务 `*Test.java` + ACTS yaml suite |
+
+> **为什么这样拆**:`ArchitectureRulesTest` 和 `BootContextSmokeTest` 是"启动期/架构合规"的硬约束,
+> 不依赖外部资源(DDS / mist 等),必须每次 CI 都跑且失败即挂——否则反模式 #12 #13 #14 形同虚设。
+> ACTS 集成测试依赖外部资源就绪,默认跳过避免 CI 环境炸,需要回归时显式打开。
 
 | 源 | 目标 |
 |---|---|
-| `templates/app/test/pom.xml.tmpl` | `app/test/pom.xml`(已在 Phase 3 列出) |
+| `templates/app/test/pom.xml.tmpl` | `app/test/pom.xml`(已在 Phase 3 列出;含 ArchUnit 依赖 + strict/lenient surefire) |
 | `templates/app/test/SOFABootTestApplication.java.tmpl` | `app/test/src/main/java/{{basePackagePath}}/servicetest/base/SOFABootTestApplication.java` |
 | `templates/app/test/AbstractTestBase.java.tmpl` | `app/test/src/main/java/{{basePackagePath}}/servicetest/base/AbstractTestBase.java` |
 | `templates/app/test/ActsTestBase.java.tmpl` | `app/test/src/main/java/{{basePackagePath}}/servicetest/base/{{AppName}}ActsTestBase.java`(执行时按 `{{AppName}}` 重命名) |
-| `templates/app/test/BootContextSmokeTest.java.tmpl` | `app/test/src/test/java/{{basePackagePath}}/servicetest/smoke/BootContextSmokeTest.java`(**装配冒烟,不挂 isSkipIntegrationTest**) |
+| `templates/app/test/BootContextSmokeTest.java.tmpl` | `app/test/src/test/java/{{basePackagePath}}/servicetest/smoke/BootContextSmokeTest.java`(**strict execution,装配冒烟**) |
+| `templates/app/test/ArchitectureRulesTest.java.tmpl` | `app/test/src/test/java/{{basePackagePath}}/servicetest/architecture/ArchitectureRulesTest.java`(**strict execution,§A0/§I 机器化**) |
 | `templates/app/test/acts-config.properties` | `app/test/src/main/resources/config/acts-config.properties` |
 | `templates/app/test/testng-all.xml` | `app/test/src/main/resources/actsSuite/{{appName}}-testng-all.xml`(执行时按 `{{appName}}` 重命名) |
 | `templates/app/test/example.xml` | `app/test/src/main/resources/spring/example.xml` |

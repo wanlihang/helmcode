@@ -13,6 +13,10 @@
 ## A0. 包内聚（按业务功能点 `{context}` 分包，硬约束，直接打回）
 
 > 详见 standards.md §0。一条业务需求,通过包路径 10 秒内定位到所有相关代码。
+>
+> **机器执行**:本节 A0-1/A0-2/A0-3/A0-4 已由 `app/test/.../servicetest/architecture/ArchitectureRulesTest.java` 在
+> `mvn test` 阶段强制(`acceptor_must_be_in_context_subpackage` / `handler_*` / `action_*` / `context_class_*`),
+> strict execution 失败即挂,不挂 `isSkipIntegrationTest`。
 
 - [ ] 同一功能点的 Facade + Acceptor + Handler + Action + Context **必须在同一 `{context}` 包下**
       （如 `application/mapping/{acceptor,handler,action,context}/`）
@@ -84,6 +88,13 @@
 
 > 这一节专治"`mvn compile` / `mvn package` 通过、`mvn test` 跑 BootContextSmokeTest 才炸 / IDE 启动才炸"的问题。
 > 详见 `patterns/stub-and-bean-naming.md` 与 `core/init-java-ddd/templates/app/test/BootContextSmokeTest.java.tmpl`。
+>
+> **机器执行**:
+> - I-1 由 `ArchitectureRulesTest#domain_service_interface_must_have_impl` 强制(自定义 ArchCondition 扫 domain..service interface)
+> - I-3 由 `ArchitectureRulesTest#no_*_exception_in_business_code` 强制(IllegalState/Argument/Unsupported 三类)
+> - I-5 BootContextSmokeTest 存在性由 `pom.xml.tmpl` strict execution 的 `<include>**/servicetest/smoke/*Test.java</include>` 隐式强制(缺则 strict 跑 0 个测试)
+> - I-6 错误码字符串硬编码会被编译期发现(`Result.fail(String, ...)` 静态方法不存在)
+> - I-2 / I-4 静态分析难表达,留给 PR 人工 review
 
 - [ ] **I-1** 每个新增 / 修改的 Spring 管理 `interface`(`*Service` / `*Repository` 等),同一 commit
       内必须有对应的 `@Service` / `@Repository` 实现 —— 即使 stub 也要落,内容是

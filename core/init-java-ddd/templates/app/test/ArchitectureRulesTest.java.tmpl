@@ -1,0 +1,167 @@
+package {{basePackage}}.servicetest.architecture;
+
+import com.tngtech.archunit.core.domain.JavaClass;
+import com.tngtech.archunit.core.importer.ImportOption;
+import com.tngtech.archunit.junit.AnalyzeClasses;
+import com.tngtech.archunit.junit.ArchTest;
+import com.tngtech.archunit.lang.ArchCondition;
+import com.tngtech.archunit.lang.ArchRule;
+import com.tngtech.archunit.lang.ConditionEvents;
+import com.tngtech.archunit.lang.SimpleConditionEvent;
+
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
+
+/**
+ * 架构合规自动校验 — 把 review-rules.md §A0(包内聚)+ §I(装配风险)
+ * 翻成 mvn test 强制规则,从"文字约束"升级为"机器可执行约束"。
+ *
+ * <p>跑 strict execution(test-arch-and-smoke,见 pom.xml.tmpl),
+ * <b>不挂</b> isSkipIntegrationTest,失败即挂(不忽略)。每次 CI 必须通过。
+ *
+ * <p>覆盖规则:
+ * <ul>
+ *   <li>§A0-1 / A0-2 / A0-3: Acceptor / Handler / Action 必须落在 application.{context}.* 下,
+ *       禁止水平分包(application.acceptor/、application.handler/、application.action/ 顶层)</li>
+ *   <li>§I-1: domain..service 下的 interface 必须有至少一个实现(stub @Service 也行)</li>
+ *   <li>§I-3a: 业务代码禁抛 IllegalStateException</li>
+ *   <li>§I-3b: 业务代码禁抛 IllegalArgumentException(参数校验改用 MycmBizException + ILLEGAL_ARGUMENT)</li>
+ *   <li>§I-3c: 业务代码禁抛 UnsupportedOperationException</li>
+ * </ul>
+ *
+ * <p><b>未覆盖的规则</b>(留给人工 review):
+ * <ul>
+ *   <li>§I-2 跨 context 同名 @Component 显式命名 — 静态分析难表达,review 时人审</li>
+ *   <li>§I-4 stub 占位写法统一 — 同上,但反向规则 §I-3a/b/c 已堵住主要漏洞</li>
+ *   <li>§I-5 BootContextSmokeTest 存在性 — pom.xml.tmpl strict execution include 强制</li>
+ *   <li>§I-6 错误码硬编码字符串 — 编译期就会爆(Result.fail(String,...) 不存在)</li>
+ * </ul>
+ *
+ * <p><b>触发规则失败时的处理</b>:不要加 @Disabled / @ArchIgnore 跳过,
+ * 找到违规类按规则修。详见 standards/java-ddd/review-rules.md §A0 / §I。
+ */
+@AnalyzeClasses(
+    packages = "{{basePackage}}",
+    importOptions = ImportOption.DoNotIncludeTests.class
+)
+public class ArchitectureRulesTest {
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // §A0 包内聚 — 同一功能点的代码必须收敛在同一 {context} 包下
+    // ─────────────────────────────────────────────────────────────────────────
+
+    @ArchTest
+    static final ArchRule acceptor_must_be_in_context_subpackage =
+        classes()
+            .that().haveSimpleNameEndingWith("Acceptor")
+            .and().resideInAPackage("..application..")
+            .should().resideInAPackage("..application.*.acceptor")
+            .because("§A0-1 包内聚: Acceptor 必须在 application.{context}.acceptor 下;"
+                + "禁止水平分包 application.acceptor/。详见 patterns/acceptor.md");
+
+    @ArchTest
+    static final ArchRule handler_must_be_in_context_subpackage =
+        classes()
+            .that().haveSimpleNameEndingWith("Handler")
+            .and().resideInAPackage("..application..")
+            .and().doNotHaveFullyQualifiedName("{{basePackage}}.application.shared.handler.HandlerTemplate")
+            .and().doNotHaveFullyQualifiedName("{{basePackage}}.application.shared.handler.StatefulHandlerTemplate")
+            .and().doNotHaveFullyQualifiedName("{{basePackage}}.application.shared.handler.HandlerExceptionHandler")
+            .should().resideInAPackage("..application.*.handler")
+            .because("§A0-2 包内聚: Handler 必须在 application.{context}.handler 下;"
+                + "shared/handler 仅放跨 context 共享基类。详见 patterns/handler.md");
+
+    @ArchTest
+    static final ArchRule action_must_be_in_context_subpackage =
+        classes()
+            .that().haveSimpleNameEndingWith("Action")
+            .and().resideInAPackage("..application..")
+            .and().doNotHaveFullyQualifiedName("{{basePackage}}.application.shared.handler.OperateLogAction")
+            .and().areNotInterfaces()
+            .should().resideInAPackage("..application.*.action")
+            .because("§A0-3 包内聚: Action 必须在 application.{context}.action 下;"
+                + "shared/handler/Action 是接口本身,OperateLogAction 是基类自动追加的共享 Action");
+
+    @ArchTest
+    static final ArchRule context_class_must_be_in_context_subpackage =
+        classes()
+            .that().haveSimpleNameEndingWith("Context")
+            .and().resideInAPackage("..application..")
+            .and().doNotHaveFullyQualifiedName("{{basePackage}}.application.shared.handler.HandlerContext")
+            .should().resideInAPackage("..application.*.context")
+            .because("§A0 包内聚: HandlerContext 子类必须在 application.{context}.context 下");
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // §I-1 装配风险 — domain service interface 必须有 stub @Service 实现
+    // ─────────────────────────────────────────────────────────────────────────
+
+    @ArchTest
+    static final ArchRule domain_service_interface_must_have_impl =
+        classes()
+            .that().resideInAPackage("..domain..service")
+            .and().areInterfaces()
+            .should(haveAtLeastOneImplementation())
+            .because("§I-1 装配风险: domain service interface 必须有 @Service 实现"
+                + "(stub 也行,内容是 throw new MycmSysException(SYSTEM_INNER_ERROR, \"...待对接\"));"
+                + "否则 Spring 启动期 NoSuchBeanDefinitionException。详见 patterns/stub-and-bean-naming.md 规则 1");
+
+    private static ArchCondition<JavaClass> haveAtLeastOneImplementation() {
+        return new ArchCondition<JavaClass>("have at least one @Service implementation") {
+            @Override
+            public void check(JavaClass anInterface, ConditionEvents events) {
+                if (anInterface.getClassesImplementing().isEmpty()) {
+                    String message = String.format(
+                        "Interface %s has no implementation. "
+                            + "Add a stub *Impl with @Service that throws MycmSysException(SYSTEM_INNER_ERROR, "
+                            + "\"%s#... 待对接\"). See patterns/stub-and-bean-naming.md rule 1.",
+                        anInterface.getName(), anInterface.getSimpleName());
+                    events.add(SimpleConditionEvent.violated(anInterface, message));
+                }
+            }
+        };
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // §I-3 装配风险 — 业务代码严禁抛 JDK 原生异常
+    // ─────────────────────────────────────────────────────────────────────────
+
+    @ArchTest
+    static final ArchRule no_illegal_state_exception_in_business_code =
+        noClasses()
+            .that().resideInAnyPackage("..application..", "..domain..", "..infrastructure..")
+            .should().dependOnClassesThat().haveFullyQualifiedName("java.lang.IllegalStateException")
+            .because("§I-3 装配风险: 业务代码禁抛 IllegalStateException;"
+                + "改用 MycmBizException(BIZ_ERROR, ...) 或 MycmSysException(SYSTEM_INNER_ERROR, \"...待对接\")。"
+                + "详见 references/error-codes.md");
+
+    @ArchTest
+    static final ArchRule no_illegal_argument_exception_in_business_code =
+        noClasses()
+            .that().resideInAnyPackage("..application..", "..domain..", "..infrastructure..")
+            .and().doNotHaveSimpleName("AbstractTestBase")
+            .should().dependOnClassesThat().haveFullyQualifiedName("java.lang.IllegalArgumentException")
+            .because("§I-3 装配风险: 业务代码禁抛 IllegalArgumentException;"
+                + "参数校验改用 MycmBizException(ILLEGAL_ARGUMENT, ...) 或 Spring 的 Assert.hasText(...)。"
+                + "详见 references/error-codes.md");
+
+    @ArchTest
+    static final ArchRule no_unsupported_operation_exception_in_business_code =
+        noClasses()
+            .that().resideInAnyPackage("..application..", "..domain..", "..infrastructure..")
+            .should().dependOnClassesThat().haveFullyQualifiedName("java.lang.UnsupportedOperationException")
+            .because("§I-3 装配风险: 业务代码禁抛 UnsupportedOperationException(包括 stub 占位);"
+                + "改用 MycmSysException(SYSTEM_INNER_ERROR, \"{Class}#{method} 待对接\")。"
+                + "详见 patterns/stub-and-bean-naming.md 规则 3");
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // §A 架构分层 — domain 不依赖 infrastructure(基础规则,放这里一并守)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    @ArchTest
+    static final ArchRule domain_must_not_depend_on_infrastructure =
+        noClasses()
+            .that().resideInAPackage("..domain..")
+            .should().dependOnClassesThat().resideInAPackage("..infrastructure..")
+            .because("§A 架构分层: domain 不依赖 infrastructure(依赖倒置)。"
+                + "Repository 接口在 domain,实现在 infrastructure。详见 standards.md §1");
+}
