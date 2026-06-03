@@ -116,86 +116,52 @@ apps/portal/
 
 ### 5.1 复制粘贴到 Claude Code 的完整文本
 
+> **本 prompt 实测 ~3500 字符,远低于 /goal 4000 上限。** 直接复制下面代码块完整内容粘贴到 Claude Code 即可。
+
 ```
-/goal 在 apps/portal/ 下完成 Full-Loop Platform MVP 第 1 步:全景矩阵静态渲染。
+/goal apps/portal/ 下完成 MVP 第 1 步:全景矩阵静态渲染。前置:apps/portal/ 下已有 8 个配置(package.json/tsconfig/next.config.mjs/tailwind.config.ts/postcss.config.mjs/biome.json/.gitignore/app/globals.css,已 commit,不要动)。
 
-【范围】
-1. 已就位的 apps/portal/ 下 8 个配置文件不要动:package.json / tsconfig.json /
-   next.config.mjs / tailwind.config.ts / postcss.config.mjs / biome.json /
-   .gitignore / app/globals.css。验证它们存在再继续。
-2. 创建 apps/portal/data/feature-matrix.yaml,内容是 mycmdeliverhub 的 5 域
-   40 功能点完整结构化数据。schema 必须严格遵循以下样例(每个 feature 含 id /
-   name / legacy.flowCode / legacy.activities / target.handler / target.actions /
-   target.context / priority / status):
-
+【生成 11 个文件】
+1. data/feature-matrix.yaml — mycmdeliverhub 5 域 40 功能点完整 yaml。Schema:
    project: mycmdeliverhub
-   domains:
-     - id: deliver
-       name: 交付管理
-       features:
-         - id: D-01
-           name: 创建交付需求
-           legacy:
-             flowCode: PIPELINE_SAVE_DELIVER_RECORD
-             activities: [SaveDeliverRecordActivity, CreateSopFlowInstanceActivity, ...]
-           target:
-             handler: SaveDeliverRecordHandler
-             actions: [SaveDeliverRecordAction, ...]
-             context: deliver
-           priority: P0
-           status: not-started
-
-   完整 5 域 40 功能点参考 mycmdeliverhub 重构方案文档附录 C(钉钉文档):
-   - deliver(10):D-01 ~ D-10
-   - mapping(7):P-01 ~ P-07
-   - pricing(18):PR-01 ~ PR-18
-   - signing(3):S-01 ~ S-03
-   - ops(2):O-01 ~ O-02
-   每个 feature 都要写齐 5 个字段。如果某些字段(legacy/target)不可用则写空数组。
-   priority 取值 P0/P1/P2,status 全部默认 "not-started"。
-3. 创建 apps/portal/lib/matrix.ts:用 yaml 包加载 feature-matrix.yaml,
-   导出 FeatureMatrix / Domain / Feature 类型 + loadMatrix() / getFeature(id)
-   工具函数。运行时类型用 TypeScript interface 即可,不需 Zod。
-4. 创建 apps/portal/lib/utils.ts:cn(...inputs) 用 clsx + tailwind-merge。
-5. 创建 apps/portal/components/ui/badge.tsx:简单 shadcn 风格 Badge 组件,支持
-   variant: default / secondary / outline,以及 7 个 status 变体
-   (not-started / clarifying / pending-goal / implementing / done / blocked / abandoned)。
-6. 创建 apps/portal/components/ui/card.tsx:Card / CardHeader / CardTitle /
-   CardDescription / CardContent / CardFooter,纯 div 组合 + Tailwind 样式。
-7. 创建 apps/portal/components/feature-card.tsx:接收 feature prop,渲染
-   id + name + status badge + priority,整张卡片是 <Link href="/features/{id}">。
-8. 创建 apps/portal/components/domain-section.tsx:接收 domain prop,渲染
-   domain.name 大标题 + grid 内放该 domain 下所有 feature-card(grid-cols-1 md:2 lg:3)。
-9. 创建 apps/portal/app/layout.tsx:基础 root layout,引入 globals.css,
-   设置 html lang="zh-CN" + body className,顶部加一个简单导航栏("HelmCode Portal" 文字 +
-   "mycmdeliverhub" 项目名)。
-10. 创建 apps/portal/app/page.tsx:首页,server component 调 loadMatrix(),
-    页面顶部展示项目名 + "5 域 40 功能点"统计 + 7 种 status 的颜色图例,
-    然后逐个渲染 domain-section。
-11. 创建 apps/portal/next-env.d.ts(Next 自动生成,内容固定 3 行 reference)。
-12. 创建 apps/portal/README.md:简短说明 "cd apps/portal && pnpm install && pnpm dev"。
+   domains: [{id, name, features: [{id, name, legacy: {flowCode, activities: []}, target: {handler, actions: [], context}, priority, status}]}]
+   5 域 ID 与数量:deliver(D-01~D-10,10) / mapping(P-01~P-07,7) / pricing(PR-01~PR-18,18) / signing(S-01~S-03,3) / ops(O-01~O-02,2)。priority 取 P0/P1/P2,status 全部 "not-started"。无 legacy/target 信息的写空数组/空字符串。
+   首条完整示例:
+     - id: D-01
+       name: 创建交付需求
+       legacy:
+         flowCode: PIPELINE_SAVE_DELIVER_RECORD
+         activities: [SaveDeliverRecordActivity, CreateSopFlowInstanceActivity, CreateDeliverTaskActivity, SyncDeliverRecordToMultiTableActivity, PushFlowNodeInstanceActivity]
+       target:
+         handler: SaveDeliverRecordHandler
+         actions: [SaveDeliverRecordAction, CreateFlowInstanceAction, CreateDeliverTaskAction, SyncMultiTableAction, PushFlowNodeAction]
+         context: deliver
+       priority: P0
+       status: not-started
+2. lib/matrix.ts — fs.readFileSync + yaml.parse 同步加载;export interface FeatureMatrix/Domain/Feature + 函数 loadMatrix()/getFeature(id: string)。
+3. lib/utils.ts — cn(...inputs) 用 clsx + tailwind-merge。
+4. components/ui/badge.tsx — shadcn 风格,variant: default/secondary/outline + 7 status 变体(用 tailwind.config 已定义 status.{notStarted,clarifying,pendingGoal,implementing,done,blocked,abandoned} 着色)。
+5. components/ui/card.tsx — Card/CardHeader/CardTitle/CardDescription/CardContent/CardFooter,纯 div + Tailwind。
+6. components/feature-card.tsx — props: feature。渲染 id + name + status badge + priority badge,整张包 <Link href={`/features/${feature.id}`}>。
+7. components/domain-section.tsx — props: domain。渲染 domain.name 大标题 + grid (grid-cols-1 md:grid-cols-2 lg:grid-cols-3) 装该域所有 feature-card。
+8. app/layout.tsx — root layout,引入 globals.css,html lang="zh-CN",顶部导航栏文字 "HelmCode Portal | mycmdeliverhub"。
+9. app/page.tsx — server component 调 loadMatrix(),展示项目名 + "5 域 40 功能点"统计 + 7 status 颜色图例,然后逐个渲染 domain-section。
+10. next-env.d.ts — 固定 Next.js 3 行 reference。
+11. README.md — "cd apps/portal && pnpm install && pnpm dev"。
 
 【约束】
-- 不要装额外的 npm 包(package.json 里已有的足够)
-- 不要写 API route 或 Anthropic 调用(那是 Goal 2/3 的事)
-- 不要做 SQLite / Drizzle / 数据库(MVP 用 yaml 文件即可)
-- 不要做认证 / dialog / 启动需求按钮(Goal 2 做)
-- 文件全部用 UTF-8,中文标题/描述直接写中文
-- 严格 strict TypeScript,不允许 any
-- yaml 加载用 fs.readFileSync + yaml.parse 同步方式(server component 可以)
-- 颜色用 tailwind.config.ts 已定义的 status.* token,不要自创色值
+- 严格 TypeScript strict,禁 any
+- 颜色统一用 tailwind.config.ts 的 status.* token,禁自创色值
+- 禁装额外 npm 包(已有的足够)
+- 禁 API route/Anthropic/DB/dialog(Goal 2/3 的事)
 
-【通过信号(Haiku 评估器看以下文本)】
-通过条件全部满足才算 goal achieved:
-1. 终端跑 `cd apps/portal && pnpm install` 输出包含 "Done in" 或 "added N packages"
-2. 终端跑 `cd apps/portal && pnpm typecheck` 输出 0 个 error
-3. 终端跑 `cd apps/portal && node -e "import('yaml').then(m=>{const fs=require('fs');const d=m.parse(fs.readFileSync('data/feature-matrix.yaml','utf-8'));const total=d.domains.reduce((s,dm)=>s+dm.features.length,0);console.log('DOMAIN_COUNT='+d.domains.length);console.log('FEATURE_COUNT='+total);}).catch(console.error)"` 输出包含 "DOMAIN_COUNT=5" 和 "FEATURE_COUNT=40"
-4. 终端跑 `cd apps/portal && timeout 25 pnpm dev` 输出包含 "Ready in" 或 "compiled successfully"
-5. 终端跑 `cd apps/portal && (pnpm dev &) && sleep 20 && curl -s http://localhost:3000 | grep -o 'mycmdeliverhub' | head -1 && curl -s http://localhost:3000 | grep -c 'feature-card\\|D-01\\|PR-01'` 第一个 curl 输出 mycmdeliverhub,第二个 curl grep -c 输出 ≥ 40
-6. 文件存在性:apps/portal/data/feature-matrix.yaml / lib/matrix.ts /
-   components/feature-card.tsx / components/domain-section.tsx /
-   components/ui/badge.tsx / components/ui/card.tsx /
-   app/page.tsx / app/layout.tsx 全部存在
+【通过信号】
+1. cd apps/portal && pnpm install 输出含 "Done in" 或 "added"
+2. cd apps/portal && pnpm typecheck 0 error
+3. cd apps/portal && node -e "const fs=require('fs');const m=require('yaml');const d=m.parse(fs.readFileSync('data/feature-matrix.yaml','utf-8'));console.log('DC='+d.domains.length+';FC='+d.domains.reduce((s,x)=>s+x.features.length,0))" 输出含 DC=5 和 FC=40
+4. cd apps/portal && timeout 25 pnpm dev 输出含 "Ready in" 或 "compiled successfully"
+5. 起 dev 后 curl -s http://localhost:3000 输出含 mycmdeliverhub,且 grep -c 'D-01\|PR-01\|S-01' 输出 ≥ 3
+6. 11 个文件全部存在
 
 完成后输出"Goal 1 验收清单"逐条勾选。
 ```
@@ -501,7 +467,7 @@ goal 跑了 8 次连续 block(安全阀触发)
 
 | Goal | 预估 token(输入+输出) | 预估时长 | 预估文件数 |
 |------|---------------------|---------|----------|
-| **Goal 1** | 60-120 万 | 30-60 分钟 | ~12 个新增 |
+| **Goal 1** | 60-120 万 | 30-60 分钟 | 11 个新增 |
 | **Goal 2** | 40-80 万 | 20-40 分钟 | ~7 个新增/改 |
 | **Goal 3** | 30-60 万 | 15-30 分钟 | ~4 个新增/改 |
 | **总计** | 130-260 万 | 1.5-2 小时 | ~23 个 |
