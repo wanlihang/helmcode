@@ -223,11 +223,14 @@ app/facade/src/main/java/{{basePackagePath}}/facade/.gitkeep
 
 > Demo 切片(Phase 7)会向这些目录写文件,与 `.gitkeep` 共存,**不要删 `.gitkeep`**——用户删 Demo 后空目录还在。
 
-### Phase 5b: app/test 集成测试模块(`--with-test=true` 时,7 个基础文件)
+### Phase 5b: app/test 集成测试模块(`--with-test=true` 时,8 个基础文件)
 
 对齐 mycmbillmanage 现状:JUnit 5 与 ACTS/TestNG 双轨支持。`AbstractTestBase` 走 JUnit 5,
 `{{AppName}}ActsTestBase` 走 TestNG + ACTS yaml 用例。surefire 默认 `<skipTests>${isSkipIntegrationTest}</skipTests>`,
 本地/CI 默认跳过(`isSkipIntegrationTest=true`),需要回归时本地 `mvn -pl app/test test -DisSkipIntegrationTest=false` 强制执行。
+
+**例外**:`BootContextSmokeTest` 是装配冒烟测试,**不挂 isSkipIntegrationTest 后面** —— 它在每次 CI 都跑,
+拦"接口缺 stub impl / @Resource 命中错 bean / bean 名碰撞"等启动期才暴露的问题。详见反模式 #14。
 
 | 源 | 目标 |
 |---|---|
@@ -235,6 +238,7 @@ app/facade/src/main/java/{{basePackagePath}}/facade/.gitkeep
 | `templates/app/test/SOFABootTestApplication.java.tmpl` | `app/test/src/main/java/{{basePackagePath}}/servicetest/base/SOFABootTestApplication.java` |
 | `templates/app/test/AbstractTestBase.java.tmpl` | `app/test/src/main/java/{{basePackagePath}}/servicetest/base/AbstractTestBase.java` |
 | `templates/app/test/ActsTestBase.java.tmpl` | `app/test/src/main/java/{{basePackagePath}}/servicetest/base/{{AppName}}ActsTestBase.java`(执行时按 `{{AppName}}` 重命名) |
+| `templates/app/test/BootContextSmokeTest.java.tmpl` | `app/test/src/test/java/{{basePackagePath}}/servicetest/smoke/BootContextSmokeTest.java`(**装配冒烟,不挂 isSkipIntegrationTest**) |
 | `templates/app/test/acts-config.properties` | `app/test/src/main/resources/config/acts-config.properties` |
 | `templates/app/test/testng-all.xml` | `app/test/src/main/resources/actsSuite/{{appName}}-testng-all.xml`(执行时按 `{{appName}}` 重命名) |
 | `templates/app/test/example.xml` | `app/test/src/main/resources/spring/example.xml` |
@@ -574,6 +578,42 @@ mvn -pl app/bootstrap -am compile -DskipTests
       应用没了 DDS 什么都干不了,toggle 只是把启动期错误延后到运行期。立即回滚,改为本反模式约束所有未来 case。
     - **唯一例外**(允许 toggle 的场景):*同一份代码*在不同部署形态下行为不同(如灰度/AB 实验/feature flag),
       与"资源是否申请"无关。这种情况开关本身就是产品需求,不在本约束范围内。
+12. **声明 Spring 管理的 interface 必须同时落 stub @Service 实现**。
+    - **触发场景**:`domain/{context}/service/PriceValidationService.java` 只有 `interface`,
+      没有 `service/impl/PriceValidationServiceImpl.java`。
+      `mvn compile` 通过 / `mvn package` 通过 / IDE 启动期才报
+      `NoSuchBeanDefinitionException: No qualifying bean of type 'PriceValidationService'`。
+    - **为什么不行**:Spring 的依赖注入是**运行期**装配,编译期看不到 bean 是否存在。
+      `@Resource private PriceValidationService priceValidationService;` 在其他 bean 装配时
+      按 type 找,找不到任何 candidate → 启动失败。等 IDE 启动炸已经晚了,这是 CI 该拦的事。
+    - **正确做法**:每声明一个 `interface`,**同一 commit** 内必须落对应的 `Impl`,内容是
+      `throw new MycmSysException(ErrorCodeEnum.SYSTEM_INNER_ERROR, "{Class}#{method} 待对接")`,
+      并加 `@Service`。详见 `standards/patterns/stub-and-bean-naming.md` 规则 1。
+    - **唯一例外**:接口由 SOFA RPC consumer / 外部 jar 注入(`<sofa:reference>` 或 `@RpcConsumer`)。
+      此时在 interface 上方注释明示来源。
+    - **拦截方式**:`templates/app/test/BootContextSmokeTest.java.tmpl` 在 `mvn test` 阶段跑
+      `@SpringBootTest`,装配整条 bean 链。任何缺 stub 的接口都会让此测试失败,CI 拦住。
+13. **跨 `{context}` 同名 `@Component` / `@Action` 必须显式命名**。
+    - **触发场景**:`pricing.action.ProdOnlineUpdateAction` 和 `signing.action.ProdOnlineUpdateAction`
+      默认 bean 名都是 `prodOnlineUpdateAction`(Spring 默认是首字母小写的类名)。启动期
+      `BeanDefinitionOverrideException`,或更隐蔽地 —— `@Resource` 按字段名匹配命中错 bean,
+      跨了 bounded context,行为静默错乱很久才被发现。
+    - **正确做法**:类名是常见动词(`UpdateXxx` / `SaveXxx` / `CreateXxx`)、或类名(去 context 前缀后)
+      在多 context 出现、或 bean 跨 context 引用 —— 三条任一命中,必须
+      `@Component("{context}{ShortClassName}")`(小驼峰)+ `@Resource(name="{context}{ShortClassName}")`。
+      详见 `standards/patterns/stub-and-bean-naming.md` 规则 2。
+14. **`mvn compile` / `mvn package` 通过 ≠ 应用能启动**——必须有 BootContextSmokeTest。
+    - **触发场景**:之前 6 个 `@Configuration` 全部正确装配 + 业务代码全部编译通过,
+      但 IDE 启动时一个 stub 接口缺 impl / 一个 @Resource 命中错 bean / 一个 bean 名碰撞,
+      启动直接炸。CI 拦不住,因为 Maven 默认 lifecycle 不跑 `ApplicationContext.refresh()`。
+    - **正确做法**:`templates/app/test/BootContextSmokeTest.java.tmpl` 是必装文件,
+      内容是 `@SpringBootTest` + `@Test contextLoads()`,装配整条 bean 链。
+      surefire 默认抓到执行,**不挂 isSkipIntegrationTest 后面**(冒烟测试每次都跑)。
+    - **拒绝的反模式**:
+      - 把 BootContextSmokeTest 加 `@Disabled` / `@ConditionalOnProperty` 让它跳过 ——
+        等于把整个装配链拦截能力关掉,后续踩坑全滚到生产
+      - 把 BootContextSmokeTest 挂在 `isSkipIntegrationTest=true` 后面 ——
+        本地默认跳过,CI 也跳过,等于没装
 
 ---
 

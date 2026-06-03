@@ -79,3 +79,25 @@
 - [ ] 无 System.out.println（使用日志）
 - [ ] 无 printStackTrace（使用日志）
 - [ ] 无尾随空格和 Tab 缩进
+
+## I. 装配风险（启动期才暴露的问题，必须在 PR 阶段拦住）
+
+> 这一节专治"`mvn compile` / `mvn package` 通过、`mvn test` 跑 BootContextSmokeTest 才炸 / IDE 启动才炸"的问题。
+> 详见 `patterns/stub-and-bean-naming.md` 与 `core/init-java-ddd/templates/app/test/BootContextSmokeTest.java.tmpl`。
+
+- [ ] **I-1** 每个新增 / 修改的 Spring 管理 `interface`(`*Service` / `*Repository` 等),同一 commit
+      内必须有对应的 `@Service` / `@Repository` 实现 —— 即使 stub 也要落,内容是
+      `throw new MycmSysException(SYSTEM_INNER_ERROR, "{Class}#{method} 待对接")`
+- [ ] **I-2** 跨 `{context}` 重名风险的 `@Component` / `@Service`(类名是常见动词、或同名出现在多个 context、
+      或被多个 context 引用),必须显式命名 `@Component("{context}{ShortClassName}")`,
+      且引用方必须 `@Resource(name = "{context}{ShortClassName}")` —— **禁止**依赖默认 bean 名 + 字段名匹配
+- [ ] **I-3** **严禁**抛 `IllegalStateException` / `IllegalArgumentException` / `UnsupportedOperationException` /
+      `RuntimeException` —— 必须走 `MycmBizException` / `MycmSysException` + `ErrorCodeEnum`
+      (见 `core/init-java-ddd/references/error-codes.md`)
+- [ ] **I-4** Stub / 待对接占位**只允许一种写法**:
+      `throw new MycmSysException(ErrorCodeEnum.SYSTEM_INNER_ERROR, "{Class}#{method} 待对接")`,
+      不允许返回 `null` / 抛 JDK 异常 / 接口干脆不写实现
+- [ ] **I-5** `app/test` 必须存在 `BootContextSmokeTest`(`@SpringBootTest` + `contextLoads()`),
+      并且**不挂 isSkipIntegrationTest**(冒烟测试每次都跑,不能跳过)
+- [ ] **I-6** 错误码必须出自 `ErrorCodeEnum` 枚举值,**不允许**写 `Result.fail("STRING_CODE", ...)`
+      (该静态方法不存在,编译过不了)或自定义不在 enum 里的 code 字符串

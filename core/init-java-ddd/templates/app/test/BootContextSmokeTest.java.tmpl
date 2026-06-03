@@ -1,0 +1,61 @@
+package {{basePackage}}.servicetest.smoke;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationContext;
+import {{basePackage}}.servicetest.base.AbstractTestBase;
+
+import jakarta.annotation.Resource;
+
+/**
+ * 启动冒烟测试 — 装配整条 Spring bean 链。
+ *
+ * <p>这个测试**必须永远在 CI 跑**(不挂 isSkipIntegrationTest 后面),它是 mvn package
+ * 之上的最后一道防线,专门拦三类"编译过、启动炸"的问题:
+ * <ol>
+ *   <li>接口在 domain 层只有 interface,没有 @Service 实现 —
+ *       NoSuchBeanDefinitionException(见 patterns/stub-and-bean-naming.md 规则 1)</li>
+ *   <li>跨 context 同名 @Component 默认 bean 名碰撞 —
+ *       BeanDefinitionOverrideException(见 patterns/stub-and-bean-naming.md 规则 2)</li>
+ *   <li>@Resource 按字段名匹配命中错 bean(跨 bounded context),启动期不一定爆
+ *       但行为静默错乱 — 通过 contextLoads 至少把"装配链能不能跑通"的 boolean 信号给到 CI</li>
+ * </ol>
+ *
+ * <p><b>为什么 mvn compile / mvn package 不够</b>:
+ * <ul>
+ *   <li>mvn compile 只做语法检查 + 类型解析,不跑 ApplicationContext.refresh()</li>
+ *   <li>mvn package 打 jar/war,同样不跑 bean 装配</li>
+ *   <li>只有 @SpringBootTest 启动一次容器,才能让所有 @Component / @Service / @Resource 跑过装配</li>
+ * </ul>
+ *
+ * <p><b>触发失败时的排查路径</b>:
+ * <ul>
+ *   <li>NoSuchBeanDefinitionException → 看缺哪个 bean,补 stub @Service</li>
+ *   <li>BeanDefinitionOverrideException → 跨 context 撞名,加 @Component("contextXxxAction")</li>
+ *   <li>UnsatisfiedDependencyException → 看 root cause,通常是依赖链上某一环装配失败</li>
+ * </ul>
+ *
+ * <p><b>禁止</b>:不要把这个测试挂 @Disabled / 加 @ConditionalOnProperty 让它跳过 —
+ * 那等于把整个装配链拦截能力关掉,后续踩坑会全滚到生产环境。
+ */
+class BootContextSmokeTest extends AbstractTestBase {
+
+    @Resource
+    private ApplicationContext applicationContext;
+
+    /**
+     * 装配冒烟:能跑到这一步,说明所有 @Component / @Service / @Repository / @Configuration
+     * 已成功实例化,且 @Resource / @Autowired 全部命中目标 bean。
+     */
+    @Test
+    void contextLoads() {
+        org.junit.jupiter.api.Assertions.assertNotNull(applicationContext,
+            "ApplicationContext 应非空 — 若到这里 NPE,SpringBoot 启动链路本身有问题");
+
+        int beanCount = applicationContext.getBeanDefinitionCount();
+        org.junit.jupiter.api.Assertions.assertTrue(beanCount > 0,
+            "Bean 数量应 > 0,实际 = " + beanCount);
+
+        // 输出 bean 数量到 mvn test 日志,便于回溯历史变化
+        System.out.println("[BootContextSmokeTest] Bean count: " + beanCount);
+    }
+}
