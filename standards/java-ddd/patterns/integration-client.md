@@ -109,29 +109,45 @@ public class {ExternalService}FacadeClientImpl implements {ExternalService}Facad
 }
 ```
 
-## Usage in Application Service
+## Usage in Action
 
 ```java
-@Slf4j
-@Service
-public class {Business}ManageServiceImpl implements {Business}ManageService {
+package {PACKAGE}.application.{MODULE}.action;
 
-    @Autowired
+import javax.annotation.Resource;
+import org.springframework.stereotype.Component;
+import com.mycm.common.model.Result;
+import {PACKAGE}.application.shared.handler.Action;
+import {PACKAGE}.application.{MODULE}.context.{Business}Context;
+import {PACKAGE}.facade.external.model.{ExternalDTO};
+import {PACKAGE}.infrastructure.integration.{MODULE}.{ExternalService}FacadeClient;
+
+/**
+ * Action 内通过 FacadeClient 调外部 RPC,不直接持有原始 Facade。
+ * Client 已经包了 Preconditions + @SalLog,Action 内拿到的是已校验过的 Result。
+ *
+ * 注意:HandlerTemplate.run() 会把这个 Action 包进一个事务边界 —— RPC 调用进入事务
+ * 是危险的(请求慢导致连接被占用),严禁。如果一定要调 RPC,Action 不能与 DB 写 Action
+ * 放在同一个 Handler 里被 run 包事务;改用 check(action, ctx) 调,或单独的 Handler 路径。
+ */
+@Component
+public class Fetch{External}DataAction implements Action<{Business}Context> {
+
+    @Resource
     private {ExternalService}FacadeClient {externalService}FacadeClient;
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
-    public {Business}VO create{Business}({Business}CreateCommand command) {
-        // Call external service through client (not raw facade)
-        Result<{ExternalDTO}> externalResult = {externalService}FacadeClient.queryById(command.getExternalId());
-        // Client already validated: result is non-null and success
-
-        {ExternalDTO} externalData = externalResult.getData();
-        // Use external data in business logic
-        // ...
+    public void process({Business}Context ctx) {
+        Result<{ExternalDTO}> result = {externalService}FacadeClient.queryById(ctx.getExternalId());
+        // Client 已校验:result 非空且 success
+        ctx.set{External}Data(result.getData());
     }
 }
 ```
+
+> **注**:本项目不存在 ApplicationService 层,FacadeClient 由 Action 调用。
+> Action 在 Handler.doHandle 里被 `run(action, ctx)` 或 `check(action, ctx)` 触发。
+> **如果 Action 内有 RPC 调用,务必用 `check()` 不用 `run()`** —— RPC 不能进事务。
 
 ## Rules
 
@@ -139,8 +155,9 @@ public class {Business}ManageServiceImpl implements {Business}ManageService {
 - Never use @RpcConsumer outside IntegrationConfig
 - Every client method must have @SalLog for audit trail
 - Use Preconditions to validate RPC result (null check + success check)
-- Application layer injects FacadeClient, never the raw Facade
-- Client interface and implementation live in `infrastructure/integration/{module}/`
+- **Application 层 Action 注入 FacadeClient,不直接注入原始 RPC Facade**
+- **Action 内调 RPC 必须用 `check(action, ctx)` 触发,不用 `run()`** —— RPC 不能进事务
+- Client 接口和实现位于 `infrastructure/integration/{module}/`
 
 > **项目约定覆盖**:
 > - 命名可能是 FacadeClient/FacadeClientImpl 或 Adapter/AdapterImpl，由 project-conventions.md 确定

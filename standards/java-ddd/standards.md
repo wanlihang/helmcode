@@ -38,26 +38,45 @@ application/action/SavePdMappingAction.java
 - 技术基础设施,不属于业务(如 `infrastructure/config/`、`infrastructure/log/`、`infrastructure/messaging/`)
 - 通用查询/异常转换(如 `facade/shared/`)
 
-### 0.3 编排路径决策:Service vs Handler+Action
+### 0.3 编排路径:统一走 Acceptor → Decider → Handler + Action
 
-判定按从上往下,**第一个命中**即定:
+**所有业务用例都走同一条路径**——不区分简单 CRUD 与多步编排,不为简单用例开"直连 Service"的旁路。
+统一形态的代价是简单查询也要写一个 Handler+1 个 Action,收益是**架构无歧义、AI 生成无分支判断、新人读代码无心智成本**。
 
-| 触发条件(任一命中) | 走法 | 路径 |
+| 触发条件 | 走法 | 路径 |
 |---|---|---|
-| 含审批回调 / 状态机分支(PASS/REJECT/CANCEL) | StatefulHandlerTemplate | route() + onPass/onReject/onCancel |
-| ≥4 步业务动作,**或**需要细粒度事务边界控制(单 Action 单事务) | Handler + Action | FacadeImpl → BizTemplate → Acceptor → Handler.execute(ctx) |
-| ≤3 步且整体一个事务(校验→调服务→持久化) | Application Service | FacadeImpl → BizTemplate → Service |
+| 含审批回调 / 状态机分支(PASS/REJECT/CANCEL) | **StatefulHandlerTemplate** | Facade → BizTemplate → Acceptor → Decider → Handler.execute(ctx),内部 `route() + onPass/onReject/onCancel` |
+| 其他所有用例(含简单查询 / 简单 CRUD / 多步编排) | **HandlerTemplate + Action** | Facade → BizTemplate → Acceptor → Decider → Handler.execute(ctx),内部 `doHandle()` 顺序 `run(action, ctx)` |
 
-> **判定原则**:动作步数从契约的"业务规则/流程"段计数,一次 DB 写入或一次外部调用 = 一步。
-> 4-5 步落进"多步编排"——不是模糊地带。
+> **判定原则**:动作步数从契约的"业务规则/流程"段计数,**1 次 DB 写入 / 1 次外部调用 = 1 步**。
+> 1 步用例(如 queryDetail)走 1 个 QueryDetailAction;4-5 步用例 4-5 个 Action 顺序 run —— 形态一致。
+>
+> **Decider 的可选性**:无 scene 维度的项目,Acceptor 可以直接 `@Resource` 注入 Handler 调用;
+> 一旦有 scene 维度(同一 feature 在不同业务场景走不同 Handler),必须走 Decider。详见 §0.4。
 
-详见 [`patterns/handler.md`](patterns/handler.md) 与 [`patterns/acceptor.md`](patterns/acceptor.md)。
+详见 [`patterns/handler.md`](patterns/handler.md)、[`patterns/acceptor.md`](patterns/acceptor.md)、[`patterns/decider.md`](patterns/decider.md)。
 
 ### 0.4 零项目专有元数据
 
 - 不发明 `@HelmFlow` / `@StageStep` 之类的自定义业务注解
 - 不引入 flow XML 编排引擎(`代码顺序即执行顺序`,doHandle() 里写什么就执行什么)
 - 不引入"AI 友好"的额外插件——Spring/SOFA/Lombok/MapStruct 已足够
+- **不引入 Map<String, ?> + @PostConstruct 自注册的路由表**(违反"代码顺序即执行顺序" —
+  dispatch 走 Map.get(type) 是黑盒,新人读代码 10 秒内说不出某个 type 对应哪个实现);
+  scene/feature 维度的分发统一走 `patterns/decider.md` 的 switch 网格
+
+### 0.5 业务场景(scene)维度
+
+当同一个功能(feature)在不同业务场景(scene)下需要走不同 Handler 实现时,**禁止**:
+- 在 Facade 入参里加 scene 字段(上游传错就完蛋)
+- 在 Handler 上加 `supportScene()` / `supportFeature()` 等"自报家门"方法
+- 用 `Map<String, Handler>` + `getStrategy(type)` 等黑盒 dispatch
+
+**正确做法**:走 `patterns/decider.md`
+- `BizScene` 枚举集中定义所有场景
+- `SceneInferrer` 从 ctx 推断当前 scene(调用方不传)
+- `{Bc}Decider` 用 switch 网格显式列出 (scene, feature) → Handler 的全部映射
+- Acceptor 内调 `decider.decide(feature, ctx).execute(ctx)`
 
 ## 1. 分层与依赖
 
@@ -76,7 +95,7 @@ application/action/SavePdMappingAction.java
 | Request/Command/Query | @Data（extends BaseRequest 时加 @EqualsAndHashCode(callSuper=true)）| - |
 | Facade 实现 | @RpcProvider 或 @SofaService | @Service（单独使用） |
 | Facade 方法 | @FacadeIntercept(loggerName = MycmLoggerDef.FACADE_SERVICE_LOGGER) | - |
-| Application Service | @Service | - |
+| Acceptor / Handler / Action / Decider / Builder | @Component | @Service(它们不是 service) |
 | Repository 实现 | @Repository | - |
 | 领域层 | - | @Slf4j（禁止日志） |
 | Domain Service | @Service（不允许 @Slf4j） | @Slf4j |
@@ -94,12 +113,19 @@ application/action/SavePdMappingAction.java
 
 ## 4. 事务规则
 
-- 事务注解只用于 Application Service 层
-- 写操作：@Transactional(rollbackFor = Exception.class)
-- 读操作：@Transactional(readOnly = true)
-- 禁止：在 Domain 层和 Facade 层使用 @Transactional
-- 禁止：事务内调用外部系统（RPC/MQ）
-- 禁止：嵌套事务
+本项目**不使用** `@Transactional` 注解。事务边界由 `application.shared.handler.HandlerTemplate.run(Action, ctx)`
+内部通过 `TransactionTemplate.executeWithoutResult(...)` 控制 —— **每次 `run()` 调用就是一个独立事务边界**。
+
+| 用法 | 说明 |
+|---|---|
+| `run(action, ctx)` | 包事务执行 Action;Action 内部 DB 写入抛异常即回滚本 Action |
+| `check(action, ctx)` | 不包事务,纯校验/幂等判断 |
+| `@Transactional` 注解 | **禁止使用** —— 业务代码里不允许出现 |
+
+**关键约束**:
+- 多步业务在 Handler.doHandle() 里按顺序 `run(stepAction, ctx)` 列出,每步独立事务
+- 跨步骤失败**不会自动回滚已写入的步骤**,如需"全有或全无",在 Action 内做幂等检查 + 补偿
+- 禁止:Domain 层 / Facade 层使用 `@Transactional`、事务内调用外部系统(RPC/MQ)、嵌套事务、读用 readOnly
 
 ## 5. 命名规范
 
@@ -113,7 +139,13 @@ application/action/SavePdMappingAction.java
 | Facade(管理) | {Business}ManageFacade | OrderManageFacade |
 | Facade(查询) | {Business}QueryFacade | OrderQueryFacade |
 | Facade 实现 | {Business}ManageFacadeImpl | OrderManageFacadeImpl |
-| Application Service | {Business}ManageService | OrderManageService |
+| Acceptor | {Business}Acceptor | OrderAcceptor |
+| Decider 接口 | {Bc}Decider | OrderDecider |
+| Decider 默认实现 | Default{Bc}Decider | DefaultOrderDecider |
+| Feature 枚举 | {Bc}Feature | OrderFeature |
+| Handler | {Business}{Action}Handler | OrderCreateHandler |
+| Action | {Business}{Action}Action | SaveOrderAction |
+| Context | {Business}Context | OrderContext |
 | Command | {Business}{Action}Command | OrderCreateCommand |
 | Query | {Business}Query | OrderListQuery |
 | VO | {Business}VO | OrderDetailVO |
@@ -197,18 +229,18 @@ application/action/SavePdMappingAction.java
 
 ## 12. 项目约定覆盖
 
-以上默认值基于 7 个项目的统计分析。对于已有项目，`helmcode install` 会扫描代码并生成 `.claude/standards/project-conventions.md` 覆盖差异项。
+以上默认值基于 7 个项目的统计分析。对于已有项目,`helmcode install` 会扫描代码并生成 `.claude/standards/project-conventions.md` 覆盖差异项。
 
-可能需要覆盖的维度：
-- DO 注解风格（@Data / @Getter@Setter / 纯手写）
-- Facade RPC 注解（@RpcProvider / @SofaService）
-- Facade Result 构建（BizTemplate / 手动式）
-- 异常类名（MycmBizException / 项目自定义）
-- 错误码枚举名（ErrorCodeEnum / 项目自定义）
-- MapStruct 使用（INSTANCE / I / 不使用）
-- 持久层框架（MyBatis XML / MyBatis-Plus）
-- 集成客户端封装模式（FacadeClient / Adapter / 手写日志）
-- Preconditions 来源（Guava / 项目自定义）
+可能需要覆盖的维度:
+- DO 注解风格(@Data / @Getter@Setter / 纯手写)
+- Facade RPC 注解(@RpcProvider / @SofaService)
+- Facade Result 构建(BizTemplate / 手动式)
+- 异常类名(MycmBizException / 项目自定义)
+- 错误码枚举名(ErrorCodeEnum / 项目自定义)
+- MapStruct 使用(INSTANCE / I / 不使用)
+- 持久层框架(MyBatis XML / MyBatis-Plus)
+- 集成客户端封装模式(FacadeClient / Adapter / 手写日志)
+- Preconditions 来源(Guava / 项目自定义)
 - Logger 常量定义
 - ACTS Base Class 名称
 - SOFABootTestApplication 位置

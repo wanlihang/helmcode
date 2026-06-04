@@ -40,7 +40,7 @@
 
 - [ ] Facade 方法有 @FacadeIntercept
 - [ ] Domain Service 不使用 @Slf4j
-- [ ] Application Service 使用 @Service
+- [ ] Acceptor / Handler / Action / Decider / Builder 使用 @Component(不用 @Service)
 - [ ] Repository 使用 @Repository
 - [ ] Facade 方法返回 Result<T>
 
@@ -60,10 +60,11 @@
 
 ## F. 事务
 
-- [ ] @Transactional 只在 Application Service 层
-- [ ] 写操作使用 rollbackFor = Exception.class
-- [ ] 读操作使用 readOnly = true
-- [ ] 事务内无外部调用
+- [ ] **业务代码不允许出现 `@Transactional` 注解**
+- [ ] 事务边界由 `HandlerTemplate.run(action, ctx)` 内部 `TransactionTemplate.executeWithoutResult` 控制 —— 单 Action 单事务
+- [ ] 跨 Action 失败不会自动回滚已写入的 Action,需在 Action 内做幂等检查或补偿
+- [ ] 事务内禁止调用外部系统(RPC / MQ)
+- [ ] 禁止嵌套事务
 
 ## G. 测试
 
@@ -112,3 +113,24 @@
       并且**不挂 isSkipIntegrationTest**(冒烟测试每次都跑,不能跳过)
 - [ ] **I-6** 错误码必须出自 `ErrorCodeEnum` 枚举值,**不允许**写 `Result.fail("STRING_CODE", ...)`
       (该静态方法不存在,编译过不了)或自定义不在 enum 里的 code 字符串
+
+## J. 决策与分发反模式(强制 switch 网格,禁 Map 自注册)
+
+> 这一节钉死"路由层黑盒"。任何让 dispatch 不可读、不可静态分析的写法都打回。
+> 详见 `patterns/decider.md` 与 `standards.md §0.5`。
+>
+> **机器执行**:
+> - J-1 / J-2 可由 ArchUnit 类名检查
+> - J-3 / J-4 / J-5 静态分析难表达,留给 PR 人工 review
+
+- [ ] **J-1** 严禁 `Map<String, ?>` + `@PostConstruct` 自注册式路由(strategy auto-register / handler factory 等);
+      scene × feature 分发统一走 `patterns/decider.md` 的 switch 网格
+- [ ] **J-2** 严禁出现命名 `BizAbility` / `RoutableHandler` / `HandlerLocator` / `*Factory.get(type)` 类(deliver 教训)
+- [ ] **J-3** Decider 实现内必须用 `switch` 显式列出 (scene, feature) → Handler 的映射,**不允许** `Map.get(feature)` /
+      `Map.get(scene + ":" + feature)` 等查表式 dispatch
+- [ ] **J-4** Handler 上不允许出现 `supportScene()` / `supportFeature()` / `getType()` 等"自报家门"方法;
+      Handler 不应该知道自己被分发的规则
+- [ ] **J-5** Acceptor 不允许直接 `@Resource` 注入 Handler 调用;必须通过 `decider.decide(feature, ctx).execute(ctx)`
+      (无 scene 维度的项目此条豁免,但仍鼓励走 Decider 留扩展空间)
+- [ ] **J-6** Facade Command/Query 入参里不允许加 `scene` / `mode` / `type` 等"路由字段";
+      scene 由 `SceneInferrer` 从 ctx 推断,Facade 不应承担路由决策

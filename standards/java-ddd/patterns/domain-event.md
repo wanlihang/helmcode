@@ -143,23 +143,69 @@ public void complete() {
     }
     String fromStatus = this.status.getCode();
     this.status = {Business}StatusEnum.COMPLETED;
-    // Event is published by the application service after persistence
+    // Event is published by a dedicated Publish*Event Action AFTER persistence
 }
 ```
 
-## Usage in Application Service
+## Usage in Handler / Action
+
+> 事件**不能在 Action 内 Repository.save 完之后立刻发布** —— 那个事务还没提交,事件已经飞出去,
+> 一旦事务回滚就会出现"事件已发但数据未落"的不一致。正确做法:**把"发事件"单独抽一个 Action**,
+> 放在 SaveAction 之后,这样发事件的事务边界与持久化事务边界分离,持久化失败后续 Action 不会执行。
 
 ```java
-@Transactional(rollbackFor = Exception.class)
-public {Business}VO complete{Business}(Long id) {
-    {Business}Aggregator aggregator = {business}AggregatorBuilder.rebuildFromPersistence(id);
-    String fromStatus = aggregator.getStatus().getCode();
-    aggregator.complete();
-    {business}Repository.saveAggregator(aggregator);
-    // Publish event after successful persistence
-    domainEventPublisher.publish(
-        new {Business}StatusChangedEvent(aggregator.getId(), fromStatus, aggregator.getStatus().getCode())
-    );
-    return convertToVO(aggregator);
+package {PACKAGE}.application.{MODULE}.handler;
+
+import javax.annotation.Resource;
+import org.springframework.stereotype.Component;
+import {PACKAGE}.application.shared.handler.HandlerTemplate;
+import {PACKAGE}.application.{MODULE}.context.{Business}Context;
+import {PACKAGE}.application.{MODULE}.action.LoadAndCompleteAggregatorAction;
+import {PACKAGE}.application.{MODULE}.action.SaveAggregatorAction;
+import {PACKAGE}.application.{MODULE}.action.Publish{Business}StatusChangedEventAction;
+
+@Component
+public class Complete{Business}Handler extends HandlerTemplate<{Business}Context> {
+
+    @Resource private LoadAndCompleteAggregatorAction loadAndCompleteAction;
+    @Resource private SaveAggregatorAction saveAction;
+    @Resource private Publish{Business}StatusChangedEventAction publishEventAction;
+
+    @Override
+    protected void doHandle({Business}Context ctx) {
+        run(loadAndCompleteAction, ctx);   // 事务1:加载 + 领域方法 aggregator.complete()
+        run(saveAction, ctx);              // 事务2:持久化新状态
+        run(publishEventAction, ctx);      // 事务3:发布事件(独立事务边界)
+    }
 }
 ```
+
+```java
+package {PACKAGE}.application.{MODULE}.action;
+
+import javax.annotation.Resource;
+import org.springframework.stereotype.Component;
+import {PACKAGE}.application.shared.handler.Action;
+import {PACKAGE}.application.{MODULE}.context.{Business}Context;
+import {PACKAGE}.domain.{MODULE}.model.event.{Business}StatusChangedEvent;
+import {PACKAGE}.domain.event.DomainEventPublisher;
+
+@Component
+public class Publish{Business}StatusChangedEventAction implements Action<{Business}Context> {
+
+    @Resource
+    private DomainEventPublisher domainEventPublisher;
+
+    @Override
+    public void process({Business}Context ctx) {
+        domainEventPublisher.publish(new {Business}StatusChangedEvent(
+            ctx.get{Business}Id(),
+            ctx.getFromStatus(),
+            ctx.getToStatus()
+        ));
+    }
+}
+```
+
+> **注**:本项目不存在 ApplicationService 层,事件发布由 Action 承担,
+> 一个 Action 一件事 —— PublishEventAction 只负责发事件,不做其他副作用。

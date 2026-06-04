@@ -8,7 +8,8 @@
 | 代码类型 | 测试类型 | 框架 | 模板 |
 |---------|---------|------|------|
 | FacadeImpl | ACTS 集成测试 | ACTS + TestNG | 见下方 ACTS 模板 |
-| Application Service | ACTS 集成测试 | ACTS + TestNG | 同上 |
+| Acceptor / Handler / Action | ACTS 集成测试 | ACTS + TestNG | 同上 |
+| Decider | 单元测试 | TestNG + Mockito | 见下方单元测试模板 |
 | Domain Entity / DomainService | 单元测试 | TestNG + Mockito | 见下方单元测试模板 |
 | Repository | ACTS 集成测试 | ACTS + TestNG | 同上 |
 | Convert / 工具类 | 单元测试 | TestNG | 见下方单元测试模板 |

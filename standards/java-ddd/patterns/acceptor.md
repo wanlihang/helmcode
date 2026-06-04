@@ -1,16 +1,17 @@
 # Acceptor Pattern
 
-> When to use: 在 FacadeImpl 调 Handler 之前,把"业务受理"逻辑——**参数校验 + 状态前置检查 + 权限判断**——
+> When to use: 在 FacadeImpl 调 Handler 之前,把"业务受理"逻辑——**参数校验 + 状态前置检查 + 权限判断 + 组装 Context**——
 > 集中到 Acceptor。Handler 拿到的 Context 就是"已经过受理"的可信输入,Handler 内只关心编排,不再做防御性校验。
 >
-> **与 BizTemplate / Handler 的分工**:
+> **与 BizTemplate / Decider / Handler 的分工**:
 > - `BizTemplate.doProcess()` —— Facade 入口兜底:声明式参数校验(`@NotBlank` / `@Valid`)+ 异常捕获 + Result 包装
-> - `Acceptor` —— 业务受理:跨字段校验、状态前置、权限、幂等键预检
+> - `Acceptor` —— 业务受理:跨字段校验、状态前置、权限、幂等键预检、组装 Context
+> - `Decider`(`patterns/decider.md`)—— scene × feature → Handler 的二维分发(由 Acceptor 内部调用)
 > - `Handler` —— 业务编排:run(action, ctx) 顺序执行原子动作
 >
-> **跨项目/类型约束**: Acceptor 是可选增强。简单 CRUD(EmailBlacklist 这种)用 BizTemplate + Service 直连即可,
-> 不强求每个 Facade 方法都套一层 Acceptor。判断标准:
-> "这次写操作需要查 DB 才能判断能不能做" → 用 Acceptor;否则放在 Command 上的 `@Valid` 注解里。
+> **强制环节**:Acceptor 是 Facade → Handler 链路上的强制环节,不存在"简单 CRUD 跳过 Acceptor 直连"的旁路。
+> 简单查询也走 Acceptor(可能只做"非空校验 + 组装 Context"),保持架构形态一致。
+> 单字段约束(`@NotBlank` / `@Email`)放在 Command 类上声明,Acceptor 不重复。
 
 ## 核心定位
 

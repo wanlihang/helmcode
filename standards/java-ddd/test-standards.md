@@ -18,7 +18,8 @@
 | 代码类型 | 测试类型 | 框架 | 测试位置 |
 |---------|---------|------|---------|
 | FacadeImpl | ACTS 集成测试 | ACTS + TestNG | app/test/ |
-| Application Service | ACTS 集成测试 | ACTS + TestNG | app/test/ |
+| Acceptor / Handler / Action | ACTS 集成测试 | ACTS + TestNG | app/test/ |
+| Decider | 单元测试 | TestNG + Mockito | app/test/ 或同模块 src/test/ |
 | Domain Entity | 单元测试 | TestNG + Mockito | app/test/ 或同模块 src/test/ |
 | DomainService | 单元测试 | TestNG + Mockito | app/test/ 或同模块 src/test/ |
 | Convert / 工具类 | 单元测试 | TestNG | 同模块 src/test/ |

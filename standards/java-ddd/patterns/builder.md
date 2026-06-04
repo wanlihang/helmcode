@@ -176,8 +176,8 @@ import java.util.stream.Collectors;
 
 /**
  * AggregatorBuilder assembles complex aggregates from multiple data sources.
- * A @Component because it may call repositories or other services to gather data.
- * NOT in the domain layer — this lives in the application layer.
+ * A @Component because it may call repositories to gather data.
+ * Lives in the application layer ({MODULE}/builder/), invoked by Action.
  */
 @Slf4j
 @Component
@@ -188,13 +188,11 @@ public class {Business}AggregatorBuilder {
 
     /**
      * Build a new {Business}Aggregator from a create command.
-     * Converts facade command into domain objects, applying defaults and validation.
      */
     public {Business}Aggregator buildFromCommand({Business}CreateCommand command) {
         Assert.notNull(command, "command must not be null");
         Assert.hasText(command.get{Business}No(), "{business}No is required");
 
-        // Build items from command
         List<{Business}Item> items = command.getItems().stream()
             .map(itemCmd -> {Business}Item.create(
                 itemCmd.getProductCode(),
@@ -203,7 +201,6 @@ public class {Business}AggregatorBuilder {
             ))
             .collect(Collectors.toList());
 
-        // Build aggregate using factory method
         {Business}Aggregator aggregator = {Business}Aggregator.create(
             command.get{Business}No(),
             items,
@@ -218,26 +215,60 @@ public class {Business}AggregatorBuilder {
 
     /**
      * Re-constitute an aggregate from persistence.
-     * Loads root + child entities and reassembles the aggregate.
      */
     public {Business}Aggregator rebuildFromPersistence(Long {business}Id) {
         Assert.notNull({business}Id, "{business}Id must not be null");
 
-        // Load root
-        {Business}Aggregator aggregator = {business}Repository.findById({business}Id);
+        {Business}Aggregator aggregator = {business}Repository.findAggregatorById({business}Id);
         if (aggregator == null) {
             throw new MycmBizException(ErrorCodeEnum.BIZ_ERROR,
                 "{Business} not found: " + {business}Id);
         }
 
-        // Load child items
-        List<{Business}Item> items = {business}Repository.findItemsBy{Business}Id({business}Id);
-        aggregator.setItems(items);
-
         log.info("BIZ-SERVICE-LOGGER|{Business}AggregatorRebuilt|id={}|items={}",
-            {business}Id, items.size());
+            {business}Id, aggregator.getItems().size());
 
         return aggregator;
     }
 }
 ```
+
+### Usage in Action(in Handler+Action 编排路径里)
+
+```java
+package {PACKAGE}.application.{MODULE}.action;
+
+import javax.annotation.Resource;
+import org.springframework.stereotype.Component;
+import {PACKAGE}.application.shared.handler.Action;
+import {PACKAGE}.application.{MODULE}.builder.{Business}AggregatorBuilder;
+import {PACKAGE}.application.{MODULE}.context.{Business}Context;
+import {PACKAGE}.domain.{MODULE}.model.{Business}Aggregator;
+import {PACKAGE}.domain.{MODULE}.repository.{Business}Repository;
+
+/**
+ * 组装并持久化聚合根 —— 一个 Action 一件事。
+ * Builder 拼装 + Repository 保存 在一个事务边界内(HandlerTemplate.run 包事务)。
+ */
+@Component
+public class Save{Business}AggregatorAction implements Action<{Business}Context> {
+
+    @Resource
+    private {Business}AggregatorBuilder builder;
+
+    @Resource
+    private {Business}Repository {business}Repository;
+
+    @Override
+    public void process({Business}Context ctx) {
+        // 用 ctx 里 Acceptor 已经塞好的 command 重新拼聚合
+        {Business}Aggregator aggregator = builder.buildFromCommand(ctx.getCreateCommand());
+        aggregator.submit();  // 触发领域方法
+        {business}Repository.saveAggregator(aggregator);
+        ctx.set{Business}Id(aggregator.getId());  // 回写主键供后续 Action 用
+    }
+}
+```
+
+> **注**:不在 ApplicationService 里调 Builder —— 本项目不存在 ApplicationService 层,
+> Builder 由 Action 调用,Action 在 Handler.doHandle 里通过 `run(action, ctx)` 顺序触发。

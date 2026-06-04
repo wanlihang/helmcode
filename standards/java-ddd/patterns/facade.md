@@ -62,7 +62,7 @@ import {PACKAGE}.facade.{MODULE}.model.command.{Business}CreateCommand;
 import {PACKAGE}.facade.{MODULE}.model.command.{Business}UpdateCommand;
 import {PACKAGE}.facade.{MODULE}.model.command.{Business}CancelCommand;
 import {PACKAGE}.facade.{MODULE}.model.vo.{Business}VO;
-import {PACKAGE}.application.{MODULE}.service.{Business}ManageService;
+import {PACKAGE}.application.{MODULE}.acceptor.{Business}Acceptor;
 import com.mycm.common.model.base.Result;
 import com.mycm.common.component.log.annotation.FacadeIntercept;
 import {PACKAGE}.infrastructure.log.MycmLoggerDef;
@@ -75,20 +75,23 @@ import javax.validation.Valid;
  * {Business} manage facade implementation.
  *
  * BizTemplate.doProcess 兜底:参数校验(AnnotationValidator) + 异常捕获 +
- * Result.fail(errorCode, msg) 包装。Facade 方法里只剩"取数据 / 编排领域服务"。
+ * Result.fail(errorCode, msg) 包装。Facade 方法里只做"参数透传给 Acceptor"。
  *
  * @FacadeIntercept 兜底:打印入参 / 出参 / 耗时,所以 facade 内部不再 log.warn/log.error。
+ *
+ * 调用形态:Facade → BizTemplate → Acceptor.acceptXxx(command) → (Decider 选 Handler) → Handler.execute(ctx)
+ * Acceptor 内部组装 Context 并触发 Decider/Handler;Facade 不做任何业务编排或领域对象组装。
  */
 @RpcProvider
 public class {Business}ManageFacadeImpl implements {Business}ManageFacade {
 
     @Autowired
-    private {Business}ManageService {business}ManageService;
+    private {Business}Acceptor {business}Acceptor;
 
     @Autowired
     private BizTemplate bizTemplate;
 
-    /** 复杂场景:匿名 BizCallback,显式声明 validate / idempotent / execute。 */
+    /** 复杂场景:匿名 BizCallback,显式声明 validate / execute。 */
     @Override
     @FacadeIntercept(loggerName = MycmLoggerDef.FACADE_SERVICE_LOGGER)
     public Result<{Business}VO> create{Business}(@Valid {Business}CreateCommand command) {
@@ -100,17 +103,17 @@ public class {Business}ManageFacadeImpl implements {Business}ManageFacade {
 
             @Override
             public {Business}VO execute() {
-                return {business}ManageService.create{Business}(command);
+                return {business}Acceptor.acceptCreate(command);
             }
         });
     }
 
-    /** 简单场景:lambda,只编排 service 调用。 */
+    /** 简单场景:lambda,Acceptor 返回 VO(由内部 Handler 通过 ctx 回写)。 */
     @Override
     @FacadeIntercept(loggerName = MycmLoggerDef.FACADE_SERVICE_LOGGER)
     public Result<{Business}VO> update{Business}(@Valid {Business}UpdateCommand command) {
         return bizTemplate.doProcess(command,
-                () -> {business}ManageService.update{Business}(command));
+                () -> {business}Acceptor.acceptUpdate(command));
     }
 
     /** 无返回值场景:lambda 内 return null,doProcess 自动包成 Result<Void>。 */
@@ -118,7 +121,7 @@ public class {Business}ManageFacadeImpl implements {Business}ManageFacade {
     @FacadeIntercept(loggerName = MycmLoggerDef.FACADE_SERVICE_LOGGER)
     public Result<Void> cancel{Business}(@Valid {Business}CancelCommand command) {
         return bizTemplate.doProcess(command, () -> {
-            {business}ManageService.cancel{Business}(command.getId(), command.getOperator());
+            {business}Acceptor.acceptCancel(command);
             return null;
         });
     }

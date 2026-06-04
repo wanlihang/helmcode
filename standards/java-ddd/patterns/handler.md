@@ -1,24 +1,27 @@
 # Handler + Action Pattern
 
-> When to use(与 `../standards.md` §0.3 单点对齐):任一命中即用 Handler:
-> - 含审批回调 / 状态机分支(PASS / REJECT / CANCEL)→ StatefulHandlerTemplate
-> - **≥4 步**业务动作,**或**需要细粒度事务边界控制(单 Action 单事务)→ HandlerTemplate
+> When to use(与 `../standards.md` §0.3 单点对齐):**所有业务用例都走这条路径**——不区分简单 CRUD 与多步编排,
+> 不为简单用例开"直连 Service"的旁路。形态选择:
+> - 含审批回调 / 状态机分支(PASS / REJECT / CANCEL)→ **StatefulHandlerTemplate**
+> - 其他所有用例(含简单查询、简单 CRUD、多步编排)→ **HandlerTemplate + Action**
 >
-> 否则用 Application Service(≤3 步 + 整体一个事务,如 Demo 的 EmailBlacklist)。
+> 1 步用例(如 queryDetail)写 1 个 QueryDetailAction;4-5 步用例 4-5 个 Action 顺序 run —— 形态一致。
+> 统一形态的代价是简单查询也要走 Handler+1 Action,收益是**架构无歧义、AI 生成无分支判断、新人无心智成本**。
 >
-> 动作步数从契约的"业务规则/流程"段计数,一次 DB 写入或一次外部调用 = 一步。
+> 动作步数从契约的"业务规则/流程"段计数,**1 次 DB 写入 / 1 次外部调用 = 1 步**。
 >
 > **与 BizTemplate 的关系**:BizTemplate 仍是 Facade 层的入口兜底(参数校验 + 异常捕获 + Result 包装)。
 > HandlerTemplate 处理的是入口内部的**业务动作编排**——FacadeImpl 调 Acceptor 校验后,
-> 把请求委托给 Handler 执行。
+> 由 Decider 选 Handler,Handler 执行。
 >
 > **配套 pattern**:
 > - 前置业务受理(参数跨字段校验 / 状态前置 / 权限 / 幂等键预检)→ 见 [`acceptor.md`](acceptor.md)
-> - 简单 CRUD 编排 → 见 [`application-service.md`](application-service.md)
+> - scene × feature 维度的 Handler 选择 → 见 [`decider.md`](decider.md)
+> - 聚合根构造(跨数据源)→ 见 [`builder.md`](builder.md)
 > - 编排路径决策表 → 见 `../standards.md` §0.3
 >
-> **包路径硬约束**:Handler / Action / Acceptor / Context 必须落在同一 `{context}` 包下
-> (如 `application/mapping/{handler,action,acceptor,context}/`),不允许水平分包。
+> **包路径硬约束**:Handler / Action / Acceptor / Context / Decider 必须落在同一 `{context}` 包下
+> (如 `application/mapping/{handler,action,acceptor,context,decider}/`),不允许水平分包。
 > 详见 `../standards.md` §0.1 / `../review-rules.md` §A0。
 
 ## 核心抽象
@@ -470,9 +473,9 @@ public enum NodeState {
 
 ## FacadeImpl 如何调用 Handler
 
-> **两种模式**:
-> 1. **简单 CRUD**:FacadeImpl → BizTemplate → Service(不用 Handler)
-> 2. **多步编排**:FacadeImpl → BizTemplate → Acceptor → Handler.execute(ctx)
+> **统一形态**:FacadeImpl → BizTemplate → Acceptor →(Decider 选 Handler)→ Handler.execute(ctx)
+> 不存在"简单 CRUD 直连 Service"的旁路。Acceptor 是强制环节;无 scene 维度的项目 Decider 可由
+> Acceptor 直接 `@Resource` Handler 替代,但形态仍是 Acceptor→Handler。
 
 ```java
 package {PACKAGE}.application.{MODULE}.facade;

@@ -38,31 +38,39 @@
 
 ```
 {basePackage}.application.<context>.facade.XxxFacadeImpl.java    <- @RpcProvider,Facade 实现
-{basePackage}.application.<context>.acceptor.XxxAcceptor.java    <- 业务受理/前置校验
+{basePackage}.application.<context>.acceptor.XxxAcceptor.java    <- 业务受理/前置校验/组装 Context
+{basePackage}.application.<context>.decider.XxxDecider.java      <- 单 BC 的 Decider 接口
+{basePackage}.application.<context>.decider.DefaultXxxDecider.java <- switch 网格实现
+{basePackage}.application.<context>.decider.XxxFeature.java      <- 单 BC 的功能点枚举
 {basePackage}.application.<context>.handler.XxxHandler.java      <- HandlerTemplate/StatefulHandlerTemplate
 {basePackage}.application.<context>.action.XxxAction.java        <- Action 原子动作
-{basePackage}.application.<context>.context.XxxContext.java      <- HandlerContext 不可变上下文
+{basePackage}.application.<context>.context.XxxContext.java      <- HandlerContext + toSceneInput()
 {basePackage}.application.<context>.convert.XxxVoConvert.java    <- MapStruct,domain → VO
 {basePackage}.application.<context>.event.XxxListener.java       <- 领域事件订阅
-{basePackage}.application.<context>.service.XxxService.java      <- 应用服务(简单 CRUD 可省略此层)
-{basePackage}.application.decider.XxxDecider.java                <- 跨功能点共享的决策/路由逻辑
-{basePackage}.application.decider.XxxMode.java                   <- 决策结果枚举
-{basePackage}.application.decider.XxxContext.java                <- 决策上下文
+{basePackage}.application.<context>.builder.XxxAggregatorBuilder.java <- 聚合根构造(被 Action 调用)
+{basePackage}.application.shared.scene.BizScene.java             <- 跨 BC 共享场景枚举
+{basePackage}.application.shared.scene.SceneInferrer.java        <- 场景推断接口
+{basePackage}.application.shared.scene.SceneInput.java           <- 推断输入(由各 BC Context.toSceneInput 提供)
+{basePackage}.application.shared.scene.DefaultSceneInferrer.java <- 默认推断器
 {basePackage}.application.shared.handler.HandlerTemplate.java    <- 线性处理基类
 {basePackage}.application.shared.handler.StatefulHandlerTemplate.java <- 状态机处理基类
+{basePackage}.application.shared.handler.Handler.java            <- Handler 接口
 {basePackage}.application.shared.handler.Action.java             <- Action 接口
 {basePackage}.application.shared.handler.OperateLogAction.java   <- 日志 Action(基类自动追加)
 {basePackage}.application.shared.handler.HandlerContext.java     <- 上下文基类
 {basePackage}.application.shared.handler.HandlerExceptionHandler.java <- 异常处理
 ```
 
-- **Facade → Acceptor → Handler 三层调用链**:
-  1. FacadeImpl 通过 BizTemplate.doProcess() 入口,内部调 Acceptor 校验;
-  2. Acceptor 做参数校验、状态前置检查、权限判断;
-  3. Handler 用 HandlerTemplate 编排 Action 顺序执行。
-- **`decider/`** 是跨功能点共享的决策引擎(如签约模式路由),不属于任何单一功能点。
-- **`shared/handler/`** 是横切基础设施(HandlerTemplate 基类 + Action 接口),全局复用。
-- 简单 CRUD 场景可省略 Acceptor/Handler/Action/FacadeImpl,直接走 BizTemplate + Service。
+- **Facade → Acceptor → Decider → Handler 四节调用链**:
+  1. FacadeImpl 通过 BizTemplate.doProcess() 入口,只做参数透传
+  2. Acceptor 做参数校验、状态前置、权限判断、组装 Context
+  3. Acceptor 内调 `decider.decide(feature, ctx)` 选 Handler
+  4. Handler 用 HandlerTemplate 编排 Action 顺序执行
+- **`{context}/decider/`** 是单 BC 的决策器(scene × feature 网格);跨 BC 共享的场景推断在 `shared/scene/`
+- **`shared/handler/`** 是横切基础设施(HandlerTemplate 基类 + Action 接口),全局复用
+- **`shared/scene/`** 是跨 BC 共享的业务场景定义 + 推断器,各 BC Decider 引用
+- **本项目不存在 ApplicationService 层** —— 所有用例(含简单查询)统一走 Acceptor → Decider → Handler + Action;
+  Builder 由 Action 调用,不在 Service 内
 
 ### 2.3 domain
 
