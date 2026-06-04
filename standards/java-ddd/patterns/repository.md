@@ -453,12 +453,12 @@ public class {Business}RepositoryImpl implements {Business}Repository {
 
 ## Mapper XML Template
 
-> 位置: `app/infrastructure/src/main/resources/mapper/{Business}DOMapper.xml`
+> 位置: `app/infrastructure/src/main/resources/mapper/{Business}Mapper.xml`
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="{PACKAGE}.infrastructure.mybatis.mapper.{Business}DOMapper">
+<mapper namespace="{PACKAGE}.infrastructure.{context}.mybatis.mapper.{Business}Mapper">
 
     <!-- 基础ResultMap -->
     <resultMap id="BaseResultMap" type="{PACKAGE}.infrastructure.mybatis.model.{Business}DO">

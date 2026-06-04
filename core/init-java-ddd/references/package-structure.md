@@ -97,7 +97,7 @@
 
 ```
 {basePackage}.infrastructure.<context>.repository.*RepositoryImpl.java  <- @Repository,实现 domain 仓储
-{basePackage}.infrastructure.<context>.mybatis.mapper.*DOMapper.java    <- @Mapper
+{basePackage}.infrastructure.<context>.mybatis.mapper.*Mapper.java        <- @Mapper
 {basePackage}.infrastructure.<context>.mybatis.model.*DO.java           <- MyBatis DO
 {basePackage}.infrastructure.<context>.convert.*Convert.java            <- MapStruct,domain ↔ DO
 {basePackage}.infrastructure.<context>.integration.*Client.java         <- 外部 RPC 客户端封装
@@ -206,7 +206,7 @@ app/
 ├── infrastructure/                # 基础设施层 — 按功能点 + 按技术分包
 │   ├── blacklist/                 # Demo 切片
 │   │   ├── repository/EmailBlacklistRepositoryImpl
-│   │   ├── mybatis/mapper/EmailBlacklistDOMapper
+│   │   ├── mybatis/mapper/EmailBlacklistMapper
 │   │   ├── mybatis/model/EmailBlacklistDO
 │   │   └── convert/EmailBlacklistConvert
 │   ├── integration/               # 外部系统集成(跨功能点)
