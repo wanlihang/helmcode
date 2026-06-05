@@ -4,7 +4,7 @@
 
 ```bash
 # Clone
-git clone https://github.com/mojue/helmcode.git
+git clone https://github.com/wanlihang/helmcode.git
 cd helmcode
 
 # Test locally
@@ -17,7 +17,7 @@ node bin/helmcode.mjs status --project /tmp/test-project
 ## Project Structure
 
 ```
-HelmCode/
+helmcode/
 ├── bin/helmcode.mjs        # CLI entry point
 ├── install.mjs              # Install logic
 ├── core/                    # Skills (each has SKILL.md + optional references/)
@@ -33,7 +33,7 @@ HelmCode/
 
 ### Reporting Issues
 
-- Use [GitHub Issues](https://github.com/mojue/helmcode/issues)
+- Use [GitHub Issues](https://github.com/wanlihang/helmcode/issues)
 - Include: HelmCode version, Node version, project type, error output
 
 ### Adding Standards

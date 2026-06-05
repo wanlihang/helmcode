@@ -20,6 +20,8 @@
   <a href="https://claude.ai/code"><img src="https://img.shields.io/badge/runs%20in-Claude%20Code-7C3AED?style=flat&colorA=080f12" alt="Claude Code"></a>
 </p>
 
+> **🚢 Looking for the multi-agent platform?** The full-loop AI coding platform (web portal + 5-node agent pipeline + cross-node fix-task loops + multi-project onboarding) lives in [**HelmFlow**](https://github.com/wanlihang/helmflow). HelmCode (this repo) stays focused on **the lightweight standards + skill installer** that any project can adopt; HelmFlow consumes HelmCode standards and adds the platform layer on top.
+
 ---
 
 ## Table of Contents

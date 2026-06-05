@@ -20,6 +20,8 @@
   <a href="https://claude.ai/code"><img src="https://img.shields.io/badge/runs%20in-Claude%20Code-7C3AED?style=flat&colorA=080f12" alt="Claude Code"></a>
 </p>
 
+> **🚢 想找多 agent 中台?** 全流程自动化的 AI 编程中台(web Portal + 5 节点 agent 流水线 + 跨节点 fix-task 循环 + 多项目接入)在 [**HelmFlow**](https://github.com/wanlihang/helmflow)。HelmCode(本仓库)专注**轻量标准 + skill 安装器**,任何项目可接入;HelmFlow 消费 HelmCode 的标准,在上层叠加平台能力。
+
 ---
 
 ## 目录
