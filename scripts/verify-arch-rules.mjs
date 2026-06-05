@@ -346,8 +346,10 @@ function buildRules(layerConfig) {
           if (!isInLayer(rel, layerConfig.facade) && !isInLayer(rel, layerConfig.facadeImpl)) continue;
           const content = readFileSync(f, 'utf-8');
           const imports = parseImports(content);
-          // 检查是否有直接 import Mapper 的
-          const mapperImports = imports.filter(imp => /Mapper\b/.test(imp) && !imp.includes('MapMapper'));
+          // 检查是否有直接 import MyBatis Mapper 的（排除 MapStruct 的 org.mapstruct.Mapper）
+          const mapperImports = imports.filter(imp =>
+            /Mapper\b/.test(imp) && !imp.includes('MapMapper') && !imp.startsWith('org.mapstruct')
+          );
           if (mapperImports.length > 0) {
             issues.push({ file: rel, detail: `Facade 直接引用了 Mapper: ${mapperImports.join(', ')}` });
           }

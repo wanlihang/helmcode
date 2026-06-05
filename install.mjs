@@ -60,7 +60,7 @@ function detectInstallMethod() {
 
 // ── Semver comparison ────────────────────────────────────
 
-function compareSemver(a, b) {
+export function compareSemver(a, b) {
   const parse = (v) => {
     const cleaned = (v || '0.0.0').replace(/^v/, '').split('-')[0];
     return cleaned.split('.').map(Number);
@@ -232,7 +232,7 @@ const PRESETS = {
 
 // ── Detect preset ────────────────────────────────────────
 
-function detectPreset(projectDir) {
+export function detectPreset(projectDir) {
   if (existsSync(join(projectDir, 'pom.xml')) || existsSync(join(projectDir, 'build.gradle'))) {
     return 'java-ddd';
   }
@@ -446,6 +446,15 @@ function installGlobalLoader() {
 
 // ── Project Scanner ────────────────────────────────────────
 
+function detectSourceRoot(projectDir) {
+  const candidates = ['app', 'src/main/java', 'src', '.'];
+  for (const c of candidates) {
+    const dir = join(projectDir, c);
+    if (existsSync(dir) && findFilesDeep(dir, '.java', 2).length > 0) return dir;
+  }
+  return null;
+}
+
 function findFilesDeep(dir, pattern, maxDepth = 20) {
   if (!existsSync(dir) || maxDepth <= 0) return [];
   const results = [];
@@ -462,8 +471,8 @@ function findFilesDeep(dir, pattern, maxDepth = 20) {
   return results;
 }
 
-function scanDOAnnotations(projectDir) {
-  const doFiles = findFilesDeep(join(projectDir, 'app'), 'DO.java');
+function scanDOAnnotations(sourceRoot) {
+  const doFiles = findFilesDeep(sourceRoot, 'DO.java');
   if (doFiles.length === 0) return { detected: false, reason: 'No DO files found' };
 
   const counts = { '@Data': 0, '@Getter': 0, 'plain': 0, '@TableName': 0 };
@@ -507,10 +516,10 @@ function scanDOAnnotations(projectDir) {
   };
 }
 
-function scanExceptionPattern(projectDir) {
+function scanExceptionPattern(sourceRoot) {
   const throwMatches = { MycmBizException: 0, BizException: 0, OperationException: 0, RuntimeException: 0 };
   const errorCodeEnums = new Set();
-  const javaFiles = findFilesDeep(join(projectDir, 'app'), '.java');
+  const javaFiles = findFilesDeep(sourceRoot, '.java');
 
   for (const file of javaFiles) {
     const content = readFileSync(file, 'utf-8');
@@ -547,8 +556,8 @@ function scanExceptionPattern(projectDir) {
   };
 }
 
-function scanFacadePattern(projectDir) {
-  const facadeFiles = findFilesDeep(join(projectDir, 'app'), 'FacadeImpl.java');
+function scanFacadePattern(sourceRoot) {
+  const facadeFiles = findFilesDeep(sourceRoot, 'FacadeImpl.java');
   if (facadeFiles.length === 0) return { detected: false };
 
   const annotations = { '@RpcProvider': 0, '@SofaService': 0, '@Service': 0 };
@@ -581,9 +590,9 @@ function scanFacadePattern(projectDir) {
   };
 }
 
-function scanMapStruct(projectDir) {
-  const convertFiles = findFilesDeep(join(projectDir, 'app'), 'Convert.java')
-    .concat(findFilesDeep(join(projectDir, 'app'), 'Converter.java'));
+function scanMapStruct(sourceRoot) {
+  const convertFiles = findFilesDeep(sourceRoot, 'Convert.java')
+    .concat(findFilesDeep(sourceRoot, 'Converter.java'));
 
   const mapstructFiles = [];
   const handWritten = [];
@@ -618,11 +627,11 @@ function scanMapStruct(projectDir) {
   };
 }
 
-function scanPersistence(projectDir) {
-  const xmlMappers = findFilesDeep(join(projectDir, 'app'), 'Mapper.xml');
-  const mybatisPlusUsage = findFilesDeep(join(projectDir, 'app'), 'DO.java')
+function scanPersistence(sourceRoot) {
+  const xmlMappers = findFilesDeep(sourceRoot, 'Mapper.xml');
+  const mybatisPlusUsage = findFilesDeep(sourceRoot, 'DO.java')
     .filter(f => readFileSync(f, 'utf-8').includes('@TableName')).length;
-  const baseMapperUsage = findFilesDeep(join(projectDir, 'app'), 'Mapper.java')
+  const baseMapperUsage = findFilesDeep(sourceRoot, 'Mapper.java')
     .filter(f => readFileSync(f, 'utf-8').includes('BaseMapper')).length;
 
   let framework;
@@ -637,8 +646,8 @@ function scanPersistence(projectDir) {
   return { detected: true, framework, xmlMapperCount: xmlMappers.length, mybatisPlusCount: mybatisPlusUsage };
 }
 
-function scanIntegrationPattern(projectDir) {
-  const integrationDir = findFilesDeep(join(projectDir, 'app'), '.java')
+function scanIntegrationPattern(sourceRoot) {
+  const integrationDir = findFilesDeep(sourceRoot, '.java')
     .filter(f => f.includes('integration') || f.includes('thirdparty') || f.includes('adapter'));
 
   const hasSalLog = integrationDir.filter(f => readFileSync(f, 'utf-8').includes('@SalLog')).length;
@@ -656,12 +665,18 @@ function scanIntegrationPattern(projectDir) {
 }
 
 function generateProjectConventions(projectDir) {
-  const doResult = scanDOAnnotations(projectDir);
-  const exResult = scanExceptionPattern(projectDir);
-  const facadeResult = scanFacadePattern(projectDir);
-  const convertResult = scanMapStruct(projectDir);
-  const persistResult = scanPersistence(projectDir);
-  const integResult = scanIntegrationPattern(projectDir);
+  const sourceRoot = detectSourceRoot(projectDir);
+  if (!sourceRoot) {
+    const md = `# 项目约定 — 自动检测\n\n> ⚠ 未找到 Java 源码目录（搜索顺序：app/, src/main/java/, src/, .），跳过约定扫描。\n> 如有需要，请手动编辑此文件。\n`;
+    return { md, doResult: { detected: false }, facadeResult: { detected: false }, convertResult: { detected: false } };
+  }
+
+  const doResult = scanDOAnnotations(sourceRoot);
+  const exResult = scanExceptionPattern(sourceRoot);
+  const facadeResult = scanFacadePattern(sourceRoot);
+  const convertResult = scanMapStruct(sourceRoot);
+  const persistResult = scanPersistence(sourceRoot);
+  const integResult = scanIntegrationPattern(sourceRoot);
 
   const confidence = (pct) => pct >= 90 ? '✅' : pct >= 60 ? '⚠️' : '❌';
 
@@ -730,7 +745,7 @@ function generateProjectConventions(projectDir) {
   md += `---\n`;
   md += `*此文件由 helmcode install 自动生成，可根据需要手动修改。*\n`;
 
-  return md;
+  return { md, doResult, facadeResult, convertResult };
 }
 
 // ── Main install ─────────────────────────────────────────
@@ -802,18 +817,14 @@ export async function install(options) {
   // Phase 3: Scan project conventions
   if (preset === 'java-ddd') {
     phaseHeader(phaseBase + 3, 'Scan Project Conventions');
-    const conventionsMd = generateProjectConventions(projectDir);
+    const { md: conventionsMd, doResult, facadeResult, convertResult } = generateProjectConventions(projectDir);
     const conventionsPath = join(projectDir, '.claude', 'standards', 'project-conventions.md');
     mkdirSync(dirname(conventionsPath), { recursive: true });
     writeFileSync(conventionsPath, conventionsMd);
     log('✓', 'project-conventions.md generated');
 
-    // Print summary
     console.log('');
     log('ℹ', 'Convention scan results:');
-    const doResult = scanDOAnnotations(projectDir);
-    const facadeResult = scanFacadePattern(projectDir);
-    const convertResult = scanMapStruct(projectDir);
     if (doResult.detected) log(' ', `DO: ${doResult.style} (${doResult.consistency}%)`);
     if (facadeResult.detected) log(' ', `Facade: ${facadeResult.rpcAnnotation}, Result: ${facadeResult.resultStyle}`);
     if (convertResult.detected) log(' ', `Convert: ${convertResult.usage === 'mapstruct' ? 'MapStruct ' + convertResult.instanceField : convertResult.usage}`);
