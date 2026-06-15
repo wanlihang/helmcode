@@ -121,7 +121,9 @@ tags: [implement, 代码生成, 判断日志, goal-worker]
 对行为契约中的每个 domain：
 
 1. **生成业务代码**(对照修改清单逐项完成)
-2. **同步生成测试代码(硬步骤,不可省)**:
+2. **按 AC-测试映射表同步生成测试(硬步骤,不可省)**:
+   - 契约的「AC-测试映射」表是测试生成的 **checklist**——逐行落地,不是自由发挥
+   - 对映射表每一行 `{AC, TestClass, method}`:生成对应 TestClass 的 method
    - 每个新增/修改的 Facade 方法 → 一组 ACTS yaml 用例(case01 正常 / case02 参数校验 /
      case03 依赖失败 / case04 业务错误,详见 `patterns/test.md`)
    - 每个新增的 Domain Service / Handler → 至少 1 个 JUnit + Mockito 单测
@@ -129,13 +131,16 @@ tags: [implement, 代码生成, 判断日志, goal-worker]
    - **配套结构**:测试与业务代码同 turn 提交,**不允许**业务代码已生成但测试为空
 3. **遗漏自查**:
    - [ ] 所有修改清单项已标记 `[x]`
-   - [ ] **业务代码每新增/修改一个公开方法,对应测试用例存在**(grep `Test\.java$` / `caseObjs\.yaml$` 数量 > 0)
+   - [ ] **AC-测试映射表的每一行都已生成对应测试**(grep `Test\.java$` / `caseObjs\.yaml$` 数量 = 映射表行数)
+   - [ ] **业务代码每新增/修改一个公开方法,对应测试用例存在**(这是 verify-harness SIG-ACCOV 的核验对象——映射表里每条 AC 都必须 1:1 命中存在的测试,否则 goal 不达成)
    - [ ] 测试覆盖正常路径 + 至少 1 个异常路径
 4. **产出判断日志**(参见 `references/judgment-log-format.md` + `references/judgment-heuristics.md`)
 
 **为什么测试是硬步骤(不是可选)**:
-- verify 的 `Tests run: N` 要求 **N ≥ 1**(详见 `verify/SKILL.md` §2)
+- verify-harness 的 **SIG-ACCOV**(headline 防线)要求契约 AC-测试映射表里每条 AC 都 1:1 命中存在的测试(详见 `verify-harness.md`)
+- verify 的 `Tests run: N` 要求 **N ≥ 1**(sanity gate,详见 `verify/SKILL.md` §2)
 - `Tests run: 0, Failures: 0` 会被 verify 标记为"❌ 测试不存在",Haiku 评估器判 goal 未达成
+- 映射表某行测试缺失会被 verify-harness 标记为 `❌ AC-coverage:AC-{id} 映射的 {TestClass} 不存在`,同样判 goal 未达成
 - 没测试的"通过"是假阳性——这次能编过不代表下次重构能编过
 - 早期跳过测试,后期补测试的成本远高于同 turn 写;且补测试时 contract 已淡出上下文
 

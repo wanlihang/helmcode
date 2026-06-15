@@ -184,16 +184,20 @@ You only intervene at two points: **approve the contract** and **review ⚠️ d
 
 ### Goal Achievement Criteria
 
-`verify` must print all four signals at the end of each turn. Only when all four pass does the Haiku evaluator declare `goal achieved`:
+`verify` prints all signals at the end of each turn. The Haiku evaluator declares `goal achieved` when the **headline defenses** pass and all **core (P0) ACs** are green. All signal strings are defined in the single source of truth: [`core/dev-flow/references/signal-glossary.md`](core/dev-flow/references/signal-glossary.md) — `verify` emits them, `compile-goal.mjs` looks them up, this table only references them.
 
-| Check | Pass signal | On failure |
+| Check | Pass signal (see glossary) | On failure |
 | --- | --- | --- |
-| **Compile** | `BUILD SUCCESS` | Next turn analyzes the error and fixes it. |
-| **Tests** | `Tests run: N (N ≥ 1), Failures: 0` | **`N = 0` is treated as failure** ("tests do not exist"). Next turn generates tests first. |
-| **Field sync** | `verify-field-sync` all ✅ | Next turn fills missing fields. |
-| **Arch rules** | `verify-arch-rules` all ✅ | Next turn adjusts per review-rules. |
+| **AC-coverage** (headline, success predicate) | `✅ AC-coverage：AC-{a}~AC-{b} 全部 1:1 映射到存在的测试` | A new method has no test. Next turn generates the test mapped in the contract's AC-test mapping table. |
+| **Compile** | `✅ 编译通过：BUILD SUCCESS` | Next turn analyzes the error and fixes it. |
+| **Tests** (N≥1 sanity gate) | `✅ 测试通过：Tests run: {N} (N ≥ 1), Failures: 0` | **`N = 0` is treated as failure** ("tests do not exist"). Next turn generates tests first. |
+| **Field sync** | `✅ 字段同步：全部通过` | Next turn fills missing fields. |
+| **Arch rules** | `✅ 架构合规：全部通过` | Next turn adjusts per review-rules. |
+| **Done** | `✅ 所有验证通过`（or `✅ 核心 AC 全部通过，次要 AC-{ids} 转 ⚠️ 留 checkpoint` if minor ACs failed） | Core AC failed — goal not achieved. |
 
-> **`Tests run ≥ 1` is a hard guard added in v2.1.0.** Without it, AI could skip test generation and let `Tests run: 0, Failures: 0` slip past the Haiku evaluator as a false positive. See `core/verify/SKILL.md` §2.
+> **v2.1.0 → v3.0 change: the headline defense moved from `Tests run: N ≥ 1` to `SIG-ACCOV` (AC-coverage 1:1).** N≥1 is a *coverage criterion* (sampling proxy) — it only blocks "zero tests in the whole project" and can't catch a new method shipping without tests. `SIG-ACCOV` is a *success predicate*: it verifies the contract's AC-test mapping table has every AC 1:1 mapped to a test that actually exists. N≥1 stays as a sanity gate but is no longer the headline. See [`verify-harness.md`](core/dev-flow/references/verify-harness.md) and the glossary.
+>
+> **v3.0 also adds: core/secondary AC split.** ACs carry `优先级: P0|P1`. P0 (core) must pass for goal achieved; P1 (minor) failures are downgraded to ⚠️ for `/checkpoint` and don't block the goal. And **goal conditions are now generated deterministically** by `node scripts/compile-goal.mjs` from the contract — no longer hand-derived. Run `node scripts/verify-glossary.mjs` to check signal strings haven't drifted across glossary / compile-goal / verify.
 
 ### Command Reference
 
