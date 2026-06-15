@@ -1,6 +1,6 @@
 {
   "name": "helmcode",
-  "version": "2.1.0",
+  "version": "3.0.0",
   "description": "AI coding workflow: clarify → /goal → checkpoint. Goal-driven autonomous delivery, with optional Java DDD cold-start scaffold.",
   "bin": {
     "helmcode": "./bin/helmcode.mjs"

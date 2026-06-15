@@ -11,7 +11,7 @@ description: |
 
   特性：按 preset 安装，每个 skill 自带 references（模板、规范、启发规则）。
   利用 Claude Code 的 /goal 机制驱动自主执行闭环。
-version: 2.1.0
+version: 3.0.0
 author: HelmCode
 tags: [loader, init, 安装, HelmCode, goal]
 ---
@@ -422,6 +422,7 @@ cp "$HELMCODE_HOME/commands/"*.md ".claude/commands/"
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v3.0.0 | 2026-06-15 | goal 机制升级：信号单一事实源（signal-glossary.md）+ 确定性 AC→goal 编译器（compile-goal.mjs）+ success predicate（verify-harness SIG-ACCOV）+ 三方对账（verify-glossary.mjs）。契约 AC 加优先级 P0/P1、验证方式 4 枚举、AC-测试映射表。**Breaking**：旧契约需补优先级字段才能被 compile-goal 解析。 |
 | v2.1.0 | 2026-06-02 | 新增：`update` 自更新（自动从 GitHub/npm 拉取最新版本）、`version` 命令、`--no-self-update` 选项、版本追踪（`.claude/.helmcode-version`）、`status` 增强（版本+更新检查）、`list` 显示版本 |
 | v2.0.3 | 2026-06-01 | 修复：install.sh 与 install.mjs 对齐，补充 init-java-ddd、scripts/commands 安装、项目约定扫描、status/update/list 子命令、--global-loader 选项 |
 | v3.0 | 2026-05-26 | 集成 /goal：从手动串联改为 goal 驱动自主闭环 |

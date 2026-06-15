@@ -108,7 +108,7 @@ npm install -g github:wanlihang/helmcode
 helmcode install --preset java-ddd
 
 # Pin to a specific version
-npm install -g github:wanlihang/helmcode#v2.1.0
+npm install -g github:wanlihang/helmcode#v3.0.0
 
 # One-time use (no global install)
 npx -y github:wanlihang/helmcode install --preset java-ddd
@@ -369,6 +369,14 @@ helmcode version                                                   # version + i
 helmcode list                                                      # available presets and skills
 helmcode --version, -v                                             # short version output
 ```
+
+### v3.0.0 Highlights
+
+- **Goal mechanism upgrade** — the headline defense moved from `Tests run: N ≥ 1` (a coverage proxy) to `SIG-ACCOV` (a success predicate that verifies every AC is 1:1 mapped to an existing test). See [`signal-glossary.md`](core/dev-flow/references/signal-glossary.md).
+- **Deterministic goal compilation** — `node scripts/compile-goal.mjs` generates the `/goal` text from the contract's ACs via objective tiering gates (no more LLM hand-derivation). See [`goal-condition-builder.md`](core/dev-flow/references/goal-condition-builder.md).
+- **Signal single source of truth** — all evaluator signal strings live in `signal-glossary.md`; `scripts/verify-glossary.mjs` cross-checks glossary / compile-goal / verify for drift (runs in both dev and installed state).
+- **Core/secondary AC split** — ACs carry `优先级: P0|P1`; core ACs must pass for `goal achieved`, minor AC failures downgrade to ⚠️ for `/checkpoint` and don't block.
+- **Breaking** — contract ACs now require a `优先级: P0|P1` field and `验证方式` from `{编译,测试,脚本,命令}`; old contracts need these added before `compile-goal.mjs` can parse them.
 
 ### v2.1.0 Highlights
 
