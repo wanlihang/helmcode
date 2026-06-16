@@ -101,6 +101,8 @@ HelmCode 的核心创新。AI 主动暴露设计决策:
 ## 安装
 
 > HelmCode 直接从 GitHub 分发。所有安装命令均从 `github:wanlihang/helmcode` 拉取源码。
+>
+> **`helmcode install` 安装前会先从 GitHub 同步最新源码**（自动拿到新技能/修复）。加 `--no-self-update` 可跳过（离线/快速重装）。`helmcode update` 同步源码并重装项目文件。
 
 ```bash
 # 全局安装(推荐)
@@ -108,7 +110,7 @@ npm install -g github:wanlihang/helmcode
 helmcode install --preset java-ddd
 
 # 锁定到特定版本
-npm install -g github:wanlihang/helmcode#v3.0.0
+npm install -g github:wanlihang/helmcode#v3.1.0
 
 # 一次性使用(无需全局安装)
 npx -y github:wanlihang/helmcode install --preset java-ddd

@@ -803,11 +803,32 @@ export async function install(options) {
     log('ℹ', `Source version: v${currentVersion} (${installMethod})`);
   }
 
+  // ── Default: sync source from GitHub before install ──
+  // 方案 A：helmcode install 默认从 GitHub 拉最新源，确保新技能/修复能被装到。
+  // npm install -g 会更新磁盘上的包，但当前进程内存里的 PRESETS/skills 仍是旧的，
+  // 故 selfUpdate 后必须 reexec（用新代码重跑 install），否则本次仍按旧 skill 列表安装。
+  // 跳过条件：--no-self-update（离线/快速），或被 update() 调用（update 自己已同步源）。
+  if (!options.noSelfUpdate && !options.phaseOffset) {
+    header('Sync Source (latest from GitHub)');
+    const method = detectInstallMethod();
+    log('ℹ', `Pulling latest helmcode via ${method} (--no-self-update to skip)...`);
+    const ok = selfUpdate(method);
+    if (ok) {
+      log('✓', 'Source synced. Re-running install with the latest code...');
+      execSync(
+        `"${process.execPath}" "${process.argv[1]}" ${process.argv.slice(2).map(a => `"${a}"`).join(' ')} --no-self-update`,
+        { stdio: 'inherit' }
+      );
+      process.exit(0);
+    }
+    log('⚠', 'Source sync failed (offline or unreachable). Continuing with installed source.');
+    console.log('');
+  }
+
   const presetConfig = PRESETS[preset];
 
   // Phase numbering: when called from update, continue from the offset
   const phaseBase = options.phaseOffset || 0;
-
   // Phase 1: Install Skills
   phaseHeader(phaseBase + 1, 'Install Skills');
   installSkills(projectDir, presetConfig.skills);
