@@ -61,6 +61,7 @@ HelmCode 不是什么：
 |-------|------|---------|------------|
 | dev-flow | 主编排器（clarify → /goal → checkpoint） | SKILL.md + references/（goal 条件构建器） | 全部 |
 | clarify | 需求拆解，产出行为契约 | SKILL.md + references/（模板、澄清维度） | 全部 |
+| sdd-gen | 系分设计文档（L2-SDD）生成器：从契约/需求/代码生成 DDD 系分 | SKILL.md + references/（系分模板、PlantUML 规范） | java-ddd |
 | implement | goal loop 内的代码生成 worker | SKILL.md + references/（判断规范、上下文规则） | java-ddd |
 | verify | goal loop 内的验证动作集 | SKILL.md | java-ddd |
 | analyze | 架构合规分析 | SKILL.md | java-ddd |
@@ -90,7 +91,7 @@ HelmCode 不是什么：
 
 完整 Java Spring Boot DDD 开发流程。
 
-Skills: dev-flow, clarify, implement, verify, analyze, init-java-ddd
+Skills: dev-flow, clarify, sdd-gen, implement, verify, analyze, init-java-ddd
 Standards: standards.md, review-rules.md, test-standards.md, patterns/
 项目约定扫描: DO 注解、异常类、Facade 模式、MapStruct、持久层框架
 
@@ -122,6 +123,11 @@ Standards: 无
 │   │   │       ├── contract-template.md
 │   │   │       ├── brief-template.md
 │   │   │       └── clarification-dimensions.md
+│   │   ├── sdd-gen/                  # 仅 java-ddd preset
+│   │   │   ├── SKILL.md
+│   │   │   └── references/
+│   │   │       ├── sdd-template.md
+│   │   │       └── plantuml-style.md
 │   │   ├── implement/
 │   │   │   ├── SKILL.md
 │   │   │   └── references/

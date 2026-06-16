@@ -201,6 +201,7 @@ HelmCode 自动:
 | --- | --- | --- |
 | `/dev-flow {需求}` | **首选** | 完整主流程:clarify → /goal → checkpoint |
 | `/clarify` | 单独使用 | 仅需求澄清,产出行为契约 |
+| `/sdd-gen` | `/clarify` 后、`/goal` 前 | 从契约/需求/代码生成标准化系分设计文档(L2-SDD)，输出按 Feature 编号与行为契约绑定(`.claude/sdd/F00X-*.md`) |
 | `/implement` | `/goal` 内自动调 | 代码生成 worker(单独跑会缺 verify 闭环) |
 | `/verify` | `/goal` 内自动调 / 单独验证 | 跑 4 项验证 |
 | `/analyze` | 主动审查 | 架构合规检查(独立于 `/goal` 之外) |
