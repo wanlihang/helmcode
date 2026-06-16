@@ -205,6 +205,7 @@ You only intervene at two points: **approve the contract** and **review ⚠️ d
 | --- | --- | --- |
 | `/dev-flow {requirement}` | **Recommended** | End-to-end pipeline: clarify → /goal → checkpoint. |
 | `/clarify` | Standalone | Requirement clarification only, produces a behavior contract. |
+| `/sdd-gen` | After `/clarify`, before `/goal` | Generates a standardized system-design doc (L2-SDD) from contract/requirement/code. Output binds to the contract by Feature ID (`.claude/sdd/F00X-*.md`). |
 | `/implement` | Auto-invoked inside `/goal` | Code generation worker (running standalone skips the verify loop). |
 | `/verify` | Auto-invoked inside `/goal` / standalone | Runs the 4 verification checks. |
 | `/analyze` | On demand | Architecture compliance check (independent of `/goal`). |

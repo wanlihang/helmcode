@@ -157,13 +157,13 @@ function selfUpdate(method) {
   try {
     switch (method) {
       case 'npm-global':
-        log('⬆', 'Updating via npm: npm update -g helmcode');
-        execSync('npm update -g helmcode', { stdio: 'inherit' });
+        log('⬆', 'Updating via npm: npm install -g wanlihang/helmcode');
+        execSync('npm install -g wanlihang/helmcode', { stdio: 'inherit' });
         return true;
 
       case 'npm-local':
-        log('⬆', 'Updating via npm: npm update helmcode');
-        execSync('npm update helmcode', { stdio: 'inherit' });
+        log('⬆', 'Updating via npm: npm install wanlihang/helmcode');
+        execSync('npm install wanlihang/helmcode', { stdio: 'inherit' });
         return true;
 
       case 'git-clone': {
@@ -182,7 +182,7 @@ function selfUpdate(method) {
 
       default:
         log('⚠', 'Could not determine install method. Manual update options:');
-        log(' ', '  npm update -g helmcode');
+        log(' ', '  npm install -g wanlihang/helmcode');
         log(' ', '  git pull  (if cloned from GitHub)');
         log(' ', '  npx helmcode@latest install');
         return false;
@@ -190,7 +190,7 @@ function selfUpdate(method) {
   } catch (err) {
     log('⚠', `Self-update failed: ${err.message}`);
     if (method === 'npm-global') {
-      log('ℹ', 'You may need sudo: sudo npm update -g helmcode');
+      log('ℹ', 'You may need sudo: sudo npm install -g wanlihang/helmcode');
     } else if (method === 'git-clone') {
       log('ℹ', 'You may have local changes. Run "git status" in the HelmCode directory.');
     }
@@ -221,7 +221,7 @@ function phaseHeader(n, title) {
 
 const PRESETS = {
   'java-ddd': {
-    skills: ['dev-flow', 'clarify', 'implement', 'verify', 'analyze', 'init-java-ddd'],
+    skills: ['dev-flow', 'clarify', 'sdd-gen', 'implement', 'verify', 'analyze', 'init-java-ddd'],
     standardsDir: 'java-ddd',
   },
   minimal: {
@@ -380,6 +380,7 @@ function configureClaudeMd(projectDir, preset) {
 
 主流程: /dev-flow (clarify → /goal → checkpoint)
 单独使用: /clarify, /implement, /verify, /analyze, /checkpoint
+系分文档: /sdd-gen（从需求/契约/PRD/代码生成标准化系分设计文档 L2-SDD，建议 clarify 之后、/goal 之前使用）
 
 ## 编码标准
 - 编码标准: .claude/standards/standards.md
@@ -393,6 +394,7 @@ function configureClaudeMd(projectDir, preset) {
 - 项目简报: .claude/briefs/ (不参与代码生成)
 - 判断日志: .claude/judgment-logs/
 - Feature 注册: .claude/contracts/registry.md
+- 系分文档: .claude/sdd/（由 /sdd-gen 生成，Feature 编号与行为契约绑定）
 `;
 
   if (existsSync(claudeMd)) {
