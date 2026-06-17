@@ -83,7 +83,7 @@ tags: [clarify, 需求分析, 行为契约, 约束定义]
 
 基于澄清结果，使用 `references/contract-template.md` 生成行为契约：
 
-1. 填写元信息（Feature ID、优先级、领域）
+1. 填写元信息（Feature ID、优先级、领域、状态）；若在 HelmFlow 编排下，填 `matrixCellId`（业务坐标 `D-XX__cell名`，供 HelmFlow 控制平面精确匹配 cell；独立使用留空）
 2. 写问题定义（一句话）
 3. 画状态机（如果有状态流转）
 4. 列业务规则（每条有 BR-xxx ID）

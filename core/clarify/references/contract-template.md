@@ -12,7 +12,8 @@ description: |
 > - Feature ID: F{NNN}-{short-name}
 > - 优先级: P0/P1/P2
 > - 涉及领域: {domain1}, {domain2}
-> - 状态: draft / approved / goal-running / done
+> - 状态: draft / approved / goal-running / done / blocked / abandoned
+> - matrixCellId: {D-XX__cell名}（HelmFlow 编排下填，独立使用留空）
 
 ## 问题定义
 

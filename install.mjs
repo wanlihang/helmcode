@@ -7,13 +7,16 @@ import { execSync } from 'node:child_process';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+// HelmCode 源根目录(不可变默认 = 本包安装位置)。
+// programmatic 消费方经 install({helmcodeHome}) / query({helmcodeHome}) 透传覆盖,
+// 不靠模块级可变状态(BR-003 无副作用方案:const + 参数默认值)。
 const HELMCODE_HOME = __dirname;
 
 // ── Version ──────────────────────────────────────────────
 
-function getHelmcodeVersion() {
+function getHelmcodeVersion(helmcodeHome = HELMCODE_HOME) {
   try {
-    const pkg = JSON.parse(readFileSync(join(HELMCODE_HOME, 'package.json'), 'utf-8'));
+    const pkg = JSON.parse(readFileSync(join(helmcodeHome, 'package.json'), 'utf-8'));
     return pkg.version || 'unknown';
   } catch {
     return 'unknown';
@@ -22,7 +25,7 @@ function getHelmcodeVersion() {
 
 // ── Install method detection ─────────────────────────────
 
-function detectInstallMethod() {
+function detectInstallMethod(helmcodeHome = HELMCODE_HOME) {
   // Check if installed via npm (global or local)
   try {
     const npmGlobalPrefix = execSync('npm config get prefix 2>/dev/null', { encoding: 'utf-8' }).trim();
@@ -40,13 +43,13 @@ function detectInstallMethod() {
 
   // Check if installed via npm locally (devDependency)
   try {
-    const localPkg = join(HELMCODE_HOME, 'node_modules', 'helmcode');
+    const localPkg = join(helmcodeHome, 'node_modules', 'helmcode');
     if (existsSync(localPkg)) return 'npm-local';
   } catch { /* fallthrough */ }
 
   // Check if inside a git repo
   try {
-    const gitDir = join(HELMCODE_HOME, '.git');
+    const gitDir = join(helmcodeHome, '.git');
     if (existsSync(gitDir)) return 'git-clone';
   } catch { /* fallthrough */ }
 
@@ -219,7 +222,7 @@ function phaseHeader(n, title) {
 
 // ── Preset definitions ──────────────────────────────────
 
-const PRESETS = {
+export const PRESETS = {
   'java-ddd': {
     skills: ['dev-flow', 'clarify', 'sdd-gen', 'implement', 'verify', 'analyze', 'init-java-ddd'],
     standardsDir: 'java-ddd',
@@ -241,13 +244,16 @@ export function detectPreset(projectDir) {
 
 // ── Install Skills ───────────────────────────────────────
 
-function installSkills(projectDir, skills) {
+function installSkills(projectDir, skills, helmcodeHome = HELMCODE_HOME) {
+  const installed = [];
+  const skipped = [];
   for (const skill of skills) {
-    const source = join(HELMCODE_HOME, 'core', skill);
+    const source = join(helmcodeHome, 'core', skill);
     const target = join(projectDir, '.claude', 'skills', skill);
 
     if (!existsSync(source)) {
       log('⚠', `${skill} source not found, skipping`);
+      skipped.push(skill);
       continue;
     }
 
@@ -261,19 +267,21 @@ function installSkills(projectDir, skills) {
     if (existsSync(join(source, 'templates'))) extras.push('templates/');
     if (existsSync(join(source, 'claude-md'))) extras.push('claude-md/');
     log('✓', extras.length ? `${skill} (+ ${extras.join(', ')})` : skill);
+    installed.push(skill);
   }
+  return { installed, skipped };
 }
 
 // ── Install Standards ────────────────────────────────────
 
-function installStandards(projectDir, preset) {
+function installStandards(projectDir, preset, helmcodeHome = HELMCODE_HOME) {
   const presetConfig = PRESETS[preset];
   if (!presetConfig.standardsDir) {
     log('ℹ', `Preset '${preset}' has no standards`);
     return 0;
   }
 
-  const source = join(HELMCODE_HOME, 'standards', presetConfig.standardsDir);
+  const source = join(helmcodeHome, 'standards', presetConfig.standardsDir);
   const target = join(projectDir, '.claude', 'standards');
 
   if (!existsSync(source)) {
@@ -313,11 +321,12 @@ function installStandards(projectDir, preset) {
 
 // ── Create project directories ───────────────────────────
 
-function createProjectDirs(projectDir) {
+function createProjectDirs(projectDir, helmcodeHome = HELMCODE_HOME) {
   const dirs = [
     '.claude/contracts',
     '.claude/briefs',
     '.claude/judgment-logs',
+    '.claude/matrix',
   ];
 
   for (const dir of dirs) {
@@ -343,8 +352,23 @@ function createProjectDirs(projectDir) {
     log('✓', 'registry.md (exists)');
   }
 
+  // Initialize feature-matrix.yaml (HelmFlow 控制平面锚点;完整 schema 由 HelmFlow 侧迁移)
+  const matrixFile = join(projectDir, '.claude', 'matrix', 'feature-matrix.yaml');
+  if (!existsSync(matrixFile)) {
+    writeFileSync(matrixFile, `# Feature Matrix — 业务全景(场景 × 功能点)
+# 由 helmcode install 创建最小合法骨架(对齐 HelmFlow matrix schema);完整内容由 HelmFlow 控制平面同步/迁移。
+project: ""
+description: ""
+schemaVersion: 3
+domains: []
+`);
+    log('✓', '.claude/matrix/feature-matrix.yaml (created)');
+  } else {
+    log('✓', '.claude/matrix/feature-matrix.yaml (exists)');
+  }
+
   // Install verify scripts
-  const scriptsSource = join(HELMCODE_HOME, 'scripts');
+  const scriptsSource = join(helmcodeHome, 'scripts');
   const scriptsTarget = join(projectDir, '.claude', 'scripts');
   if (existsSync(scriptsSource)) {
     mkdirSync(scriptsTarget, { recursive: true });
@@ -357,7 +381,7 @@ function createProjectDirs(projectDir) {
   }
 
   // Install commands
-  const commandsSource = join(HELMCODE_HOME, 'commands');
+  const commandsSource = join(helmcodeHome, 'commands');
   const commandsTarget = join(projectDir, '.claude', 'commands');
   if (existsSync(commandsSource)) {
     mkdirSync(commandsTarget, { recursive: true });
@@ -425,10 +449,10 @@ ${helmcodeSection}`);
 
 // ── Install global loader ────────────────────────────────
 
-function installGlobalLoader() {
+function installGlobalLoader(helmcodeHome = HELMCODE_HOME) {
   const globalSkillsDir = join(process.env.HOME, '.claude', 'skills');
   const loaderTarget = join(globalSkillsDir, 'helmcode-loader');
-  const loaderSource = join(HELMCODE_HOME, 'loader');
+  const loaderSource = join(helmcodeHome, 'loader');
 
   mkdirSync(globalSkillsDir, { recursive: true });
 
@@ -473,7 +497,7 @@ function findFilesDeep(dir, pattern, maxDepth = 20) {
   return results;
 }
 
-function scanDOAnnotations(sourceRoot) {
+export function scanDOAnnotations(sourceRoot) {
   const doFiles = findFilesDeep(sourceRoot, 'DO.java');
   if (doFiles.length === 0) return { detected: false, reason: 'No DO files found' };
 
@@ -518,7 +542,7 @@ function scanDOAnnotations(sourceRoot) {
   };
 }
 
-function scanExceptionPattern(sourceRoot) {
+export function scanExceptionPattern(sourceRoot) {
   const throwMatches = { MycmBizException: 0, BizException: 0, OperationException: 0, RuntimeException: 0 };
   const errorCodeEnums = new Set();
   const javaFiles = findFilesDeep(sourceRoot, '.java');
@@ -558,7 +582,7 @@ function scanExceptionPattern(sourceRoot) {
   };
 }
 
-function scanFacadePattern(sourceRoot) {
+export function scanFacadePattern(sourceRoot) {
   const facadeFiles = findFilesDeep(sourceRoot, 'FacadeImpl.java');
   if (facadeFiles.length === 0) return { detected: false };
 
@@ -592,7 +616,7 @@ function scanFacadePattern(sourceRoot) {
   };
 }
 
-function scanMapStruct(sourceRoot) {
+export function scanMapStruct(sourceRoot) {
   const convertFiles = findFilesDeep(sourceRoot, 'Convert.java')
     .concat(findFilesDeep(sourceRoot, 'Converter.java'));
 
@@ -629,7 +653,7 @@ function scanMapStruct(sourceRoot) {
   };
 }
 
-function scanPersistence(sourceRoot) {
+export function scanPersistence(sourceRoot) {
   const xmlMappers = findFilesDeep(sourceRoot, 'Mapper.xml');
   const mybatisPlusUsage = findFilesDeep(sourceRoot, 'DO.java')
     .filter(f => readFileSync(f, 'utf-8').includes('@TableName')).length;
@@ -648,7 +672,7 @@ function scanPersistence(sourceRoot) {
   return { detected: true, framework, xmlMapperCount: xmlMappers.length, mybatisPlusCount: mybatisPlusUsage };
 }
 
-function scanIntegrationPattern(sourceRoot) {
+export function scanIntegrationPattern(sourceRoot) {
   const integrationDir = findFilesDeep(sourceRoot, '.java')
     .filter(f => f.includes('integration') || f.includes('thirdparty') || f.includes('adapter'));
 
@@ -666,7 +690,7 @@ function scanIntegrationPattern(sourceRoot) {
   };
 }
 
-function generateProjectConventions(projectDir) {
+export function generateProjectConventions(projectDir) {
   const sourceRoot = detectSourceRoot(projectDir);
   if (!sourceRoot) {
     const md = `# 项目约定 — 自动检测\n\n> ⚠ 未找到 Java 源码目录（搜索顺序：app/, src/main/java/, src/, .），跳过约定扫描。\n> 如有需要，请手动编辑此文件。\n`;
@@ -753,14 +777,15 @@ function generateProjectConventions(projectDir) {
 // ── Main install ─────────────────────────────────────────
 
 export async function install(options) {
-  const { preset: presetArg, project: projectArg, force, globalLoader, quiet } = options;
+  const { preset: presetArg, project: projectArg, force, globalLoader, quiet, helmcodeHome } = options;
+  const home = helmcodeHome || HELMCODE_HOME;
 
   const projectDir = resolve(projectArg || process.cwd());
   const preset = presetArg || detectPreset(projectDir);
 
   // Validate HelmCode source
-  if (!existsSync(join(HELMCODE_HOME, 'core'))) {
-    console.error('❌ HelmCode core files not found at: ' + HELMCODE_HOME);
+  if (!existsSync(join(home, 'core'))) {
+    console.error('❌ HelmCode core files not found at: ' + home);
     process.exit(1);
   }
 
@@ -798,8 +823,8 @@ export async function install(options) {
   if (!quiet) {
     header('HelmCode Installing...');
 
-    const currentVersion = getHelmcodeVersion();
-    const installMethod = detectInstallMethod();
+    const currentVersion = getHelmcodeVersion(home);
+    const installMethod = detectInstallMethod(home);
     log('ℹ', `Source version: v${currentVersion} (${installMethod})`);
   }
 
@@ -810,7 +835,7 @@ export async function install(options) {
   // 跳过条件：--no-self-update（离线/快速），或被 update() 调用（update 自己已同步源）。
   if (!options.noSelfUpdate && !options.phaseOffset) {
     header('Sync Source (latest from GitHub)');
-    const method = detectInstallMethod();
+    const method = detectInstallMethod(home);
     log('ℹ', `Pulling latest helmcode via ${method} (--no-self-update to skip)...`);
     const ok = selfUpdate(method);
     if (ok) {
@@ -831,11 +856,11 @@ export async function install(options) {
   const phaseBase = options.phaseOffset || 0;
   // Phase 1: Install Skills
   phaseHeader(phaseBase + 1, 'Install Skills');
-  installSkills(projectDir, presetConfig.skills);
+  const { installed: installedSkills, skipped: skippedSkills } = installSkills(projectDir, presetConfig.skills, home);
 
   // Phase 2: Install Standards
   phaseHeader(phaseBase + 2, `Install Standards (${preset})`);
-  const standardsCount = await installStandards(projectDir, preset);
+  const standardsCount = await installStandards(projectDir, preset, home);
 
   // Phase 3: Scan project conventions
   if (preset === 'java-ddd') {
@@ -855,7 +880,7 @@ export async function install(options) {
 
   // Phase 4: Create project directories
   phaseHeader(phaseBase + 4, 'Create Project Directories');
-  createProjectDirs(projectDir);
+  createProjectDirs(projectDir, home);
 
   // Phase 5: Configure CLAUDE.md
   phaseHeader(phaseBase + 5, 'Configure CLAUDE.md');
@@ -864,17 +889,17 @@ export async function install(options) {
   // Phase 6: Global loader (optional)
   if (globalLoader) {
     phaseHeader(phaseBase + 6, 'Install Global Loader');
-    installGlobalLoader();
+    installGlobalLoader(home);
   }
 
   // Write version stamp
-  writeVersionStamp(projectDir, getHelmcodeVersion(), detectInstallMethod(), preset);
+  writeVersionStamp(projectDir, getHelmcodeVersion(home), detectInstallMethod(home), preset);
 
   // Summary (skip when called from update — update prints its own summary)
   if (!quiet) {
     header('HelmCode Installed!');
     console.log('');
-    console.log(`  Version:   v${getHelmcodeVersion()}`);
+    console.log(`  Version:   v${getHelmcodeVersion(home)}`);
     console.log(`  Skills:    ${presetConfig.skills.length} installed`);
     console.log(`  Standards: ${standardsCount} files`);
     console.log('');
@@ -885,6 +910,18 @@ export async function install(options) {
     console.log('');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   }
+
+  // 结构化返回(programmatic API 用,BR-002;保留上方 console.log 兼容 CLI)
+  return {
+    installed: {
+      skills: [...installedSkills],
+      standards: standardsCount,
+      dirs: ['.claude/contracts/', '.claude/briefs/', '.claude/judgment-logs/', '.claude/matrix/'],
+    },
+    skipped: [...skippedSkills],
+    errors: [],
+    version: getHelmcodeVersion(home),
+  };
 }
 
 // ── Status ───────────────────────────────────────────────

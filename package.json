@@ -5,6 +5,10 @@
   "bin": {
     "helmcode": "./bin/helmcode.mjs"
   },
+  "exports": {
+    ".": "./api.mjs",
+    "./install": "./install.mjs"
+  },
   "files": [
     "bin",
     "commands",
@@ -12,6 +16,7 @@
     "scripts",
     "standards",
     "loader",
+    "api.mjs",
     "install.mjs",
     "install.sh"
   ],
