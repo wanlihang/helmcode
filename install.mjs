@@ -326,7 +326,6 @@ function createProjectDirs(projectDir, helmcodeHome = HELMCODE_HOME) {
     '.claude/contracts',
     '.claude/briefs',
     '.claude/judgment-logs',
-    '.claude/matrix',
   ];
 
   for (const dir of dirs) {
@@ -350,21 +349,6 @@ function createProjectDirs(projectDir, helmcodeHome = HELMCODE_HOME) {
     log('✓', 'registry.md (created)');
   } else {
     log('✓', 'registry.md (exists)');
-  }
-
-  // Initialize feature-matrix.yaml (HelmFlow 控制平面锚点;完整 schema 由 HelmFlow 侧迁移)
-  const matrixFile = join(projectDir, '.claude', 'matrix', 'feature-matrix.yaml');
-  if (!existsSync(matrixFile)) {
-    writeFileSync(matrixFile, `# Feature Matrix — 业务全景(场景 × 功能点)
-# 由 helmcode install 创建最小合法骨架(对齐 HelmFlow matrix schema);完整内容由 HelmFlow 控制平面同步/迁移。
-project: ""
-description: ""
-schemaVersion: 3
-domains: []
-`);
-    log('✓', '.claude/matrix/feature-matrix.yaml (created)');
-  } else {
-    log('✓', '.claude/matrix/feature-matrix.yaml (exists)');
   }
 
   // Install verify scripts
@@ -916,7 +900,7 @@ export async function install(options) {
     installed: {
       skills: [...installedSkills],
       standards: standardsCount,
-      dirs: ['.claude/contracts/', '.claude/briefs/', '.claude/judgment-logs/', '.claude/matrix/'],
+      dirs: ['.claude/contracts/', '.claude/briefs/', '.claude/judgment-logs/'],
     },
     skipped: [...skippedSkills],
     errors: [],

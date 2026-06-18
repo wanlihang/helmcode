@@ -1,4 +1,4 @@
-// AC-008 宿主：本文件覆盖 F001-helmflow-sync 的 AC-001~AC-007。
+// 宿主：覆盖 F001(AC-001~AC-006) + F002(matrix 死代码移除)。
 // 跑法：node --test test/*.test.mjs（AC-008 = 全套绿）。
 
 import { describe, it } from 'node:test';
@@ -120,6 +120,7 @@ describe('AC-004 install structured return', () => {
     assert.ok(Array.isArray(result.installed.skills));
     assert.equal(typeof result.installed.standards, 'number');
     assert.ok(Array.isArray(result.installed.dirs));
+    assert.ok(!result.installed.dirs.includes('.claude/matrix/'), 'dirs 不含 matrix(已退役)');
     assert.ok(Array.isArray(result.skipped));
     assert.ok(Array.isArray(result.errors));
   });
@@ -178,10 +179,10 @@ describe('AC-006 contract-template', () => {
   });
 });
 
-// ── AC-007: install 创建 .claude/matrix/ ───────────────────
-describe('AC-007 install creates .claude/matrix', () => {
-  it('creates feature-matrix.yaml with schemaVersion', async () => {
-    const tmp = mkdtempSync(join(tmpdir(), 'helmcode-ac007-'));
+// ── F002 AC-001: install 不再创建 .claude/matrix/(matrix.yaml 退役,死代码移除) ──
+describe('F002 no .claude/matrix on install', () => {
+  it('install 后无 .claude/matrix/ 目录', async () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'helmcode-f002-'));
     await install({
       preset: 'minimal',
       project: tmp,
@@ -190,9 +191,7 @@ describe('AC-007 install creates .claude/matrix', () => {
       phaseOffset: 1,
       quiet: true,
     });
-    const matrixFile = join(tmp, '.claude', 'matrix', 'feature-matrix.yaml');
-    assert.ok(existsSync(matrixFile), '.claude/matrix/feature-matrix.yaml exists');
-    const content = readFileSync(matrixFile, 'utf-8');
-    assert.match(content, /schemaVersion/);
+    const matrixDir = join(tmp, '.claude', 'matrix');
+    assert.ok(!existsSync(matrixDir), '.claude/matrix/ 不应存在(matrix.yaml 已退役)');
   });
 });
