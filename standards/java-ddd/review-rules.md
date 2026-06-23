@@ -84,6 +84,9 @@
 - [ ] 无 System.out.println（使用日志）
 - [ ] 无 printStackTrace（使用日志）
 - [ ] 无尾随空格和 Tab 缩进
+- [ ] 业务代码不内联全限定类名（如 `com.foo.Bar` 当类型/静态调用），必须 `import` 后用简名；
+      全限定名仅允许：① 同文件 import 同名类需消歧（如 `java.util.Date` vs `java.sql.Date`）
+      ② ACTS/序列化 yaml（`!!com.xxx.Class`，见 test-standards.md §3.3）
 
 ## I. 装配风险（启动期才暴露的问题，必须在 PR 阶段拦住）
 
