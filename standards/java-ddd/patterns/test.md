@@ -304,3 +304,61 @@ flag 列值：C = 主键（用于清理），Y = 普通数据。
 | case04 | 业务规则错误 | 必须 |
 | case05 | 边界值 | 推荐 |
 | case06+ | 其他业务场景 | 按需 |
+
+## 反模式：假测试（坏 ✖️ / 好 ✅ 对照）
+
+覆盖率达标 ≠ 测试有效。以下反模式会让测试「过覆盖率但测不出 bug」，被 `verify-test-effectiveness.mjs`（SIG-TEST-EFF-FAIL）拦下。
+
+### 1. 无断言
+```java
+// ✖️ 坏：跑了代码，没断言任何结果
+@Test
+public void testConfirm() {
+    facade.confirm(cmd);  // 调用了，但没验证任何东西
+}
+
+// ✅ 好：断言业务结果
+@Test
+public void testConfirm_Success() {
+    Result<Void> result = facade.confirm(cmd);
+    Assert.assertTrue(result.isSuccess());
+    Assert.assertEquals(TaskStatus.CONFIRMED, task.getStatus());
+}
+```
+
+### 2. 恒真断言（永远通过）
+```java
+// ✖️ 坏：恒真，删掉被测代码也不失败
+Assert.assertTrue(result.isSuccess() || !result.isSuccess());
+Assert.assertTrue(true);
+Assert.assertEquals(expected, expected);  // 同一变量两边
+
+// ✅ 好：断言会随代码正确性变化
+Assert.assertEquals(TaskStatus.CONFIRMED, task.getStatus());
+```
+
+### 3. 吞异常（空 catch）
+```java
+// ✖️ 坏：异常被吞，测试假绿
+try {
+    facade.confirm(cmd);
+} catch (Exception e) { }
+
+// ✅ 好：断言抛出预期异常
+Assert.assertThrows(MycmBizException.class, () -> facade.confirm(invalidCmd));
+// 并断言 ErrorCodeEnum
+```
+
+### 4. 弱断言（仅 assertNotNull）
+```java
+// ✖️ 坏：只查 not null，不验证内容
+Assert.assertNotNull(result);
+
+// ✅ 好：验证返回的具体业务字段
+Assert.assertTrue(result.isSuccess());
+Assert.assertNotNull(result.getData().getId());
+```
+
+### 豁免
+- ACTS `@AutoFill` data-driven：断言在 `caseObjs.yaml` 的 Result section（不在 java），脚本豁免。
+- 确需例外：方法上加 `// helmcode-ignore-eff` 注释（慎用，PR 审）。

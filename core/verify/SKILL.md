@@ -135,6 +135,25 @@ node .claude/scripts/verify-arch-rules.mjs --project . [--domain {domain}] 2>&1
 
 **这一步 + §0 共同构成 goal 达成的最终判定依据**（见下方汇总）。
 
+### 6. 覆盖率检查（JaCoCo，sanity gate）
+
+跑 `node scripts/verify-coverage.mjs --project <project>`（解析 `jacoco.csv`，对比 test-standards §1 阈值 行≥80% 分支≥70%）。
+
+- report 不存在（未跑 `mvn verify` / 无 JaCoCo）：**跳过**（打印 `ℹ️ 覆盖率：...跳过`），不阻塞。
+- 达标：`✅ 覆盖率：行 {L}% / 分支 {B}% 达标`（**SIG-COVERAGE**）
+- 未达标：`❌ 覆盖率：行 {L}% / 分支 {B}% 未达阈值（行≥80% 分支≥70%）`（**SIG-COVERAGE-FAIL**）
+
+### 7. 测试有效性检查（反模式，sanity gate）
+
+跑 `node scripts/verify-test-effectiveness.mjs --project <project>`（扫 `*Test.java`，检测空断言/恒真/空 catch）。
+
+- 无测试文件：跳过，不阻塞。
+- 干净：`✅ 测试有效性：无空断言/废测试`（**SIG-TEST-EFF**）
+- 有反模式：`❌ 测试有效性：{file}:{line} {反模式}`（**SIG-TEST-EFF-FAIL**），下一 turn 修复（补有意义断言）。
+
+> §6/§7 是 AC-coverage（存在性）之后的**广度 + 深度**防线：AC-coverage 管「测试存在」，§6 管「代码被跑到」，§7 管「断言有意义」。
+> 两者均 sanity gate（report/脚本不存在则跳过），不取代 §0 headline。
+
 ## 验证输出汇总模板
 
 每个 turn 结束时，输出以下汇总（供 Haiku 评估器判断）。
@@ -150,6 +169,8 @@ node .claude/scripts/verify-arch-rules.mjs --project . [--domain {domain}] 2>&1
 | 测试 | ✅ 测试通过：Tests run: 12 (N ≥ 1), Failures: 0 |
 | 字段同步 | ✅ 字段同步：全部通过 |
 | 架构合规 | ✅ 架构合规：全部通过 |
+| 覆盖率 | ✅ 覆盖率：行 {L}% / 分支 {B}% 达标（report 不存在则跳过） |
+| 测试有效性 | ✅ 测试有效性：无空断言/废测试 |
 | 验收条件 | ✅ AC-001~AC-004 全部通过 |
 ```
 

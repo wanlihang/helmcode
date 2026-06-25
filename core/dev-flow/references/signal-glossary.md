@@ -32,6 +32,10 @@
 | **SIG-ARCH** | `✅ 架构合规：全部通过` | verify §4 | `verify-arch-rules.mjs` 全绿 | 脚本存在时必须出现 |
 | **SIG-ACLINE** | `✅ AC-{id}：{desc} — 通过` | verify §5 | 逐条 AC 核验通过 | 核心 AC 全部必须通过 |
 | **SIG-ACLINE-FAIL** | `❌ AC-{id}：{desc} — 未通过` | verify §5 | 逐条 AC 未通过 | 核心 AC 出现即未达成；次要 AC 转 ⚠️ |
+| **SIG-COVERAGE** | `✅ 覆盖率：行 {L}% / 分支 {B}% 达标` | verify §6 | `verify-coverage.mjs` 解析 jacoco.csv 达 §1 阈值 | sanity gate（report 存在时） |
+| **SIG-COVERAGE-FAIL** | `❌ 覆盖率：行 {L}% / 分支 {B}% 未达阈值（行≥80% 分支≥70%）` | verify §6 | 覆盖率未达 §1 阈值 | 出现即未达标（report 存在时） |
+| **SIG-TEST-EFF** | `✅ 测试有效性：无空断言/废测试` | verify §7 | `verify-test-effectiveness.mjs` 未检出反模式 | sanity gate |
+| **SIG-TEST-EFF-FAIL** | `❌ 测试有效性：{file}:{line} {反模式}` | verify §7 | 检出空断言/恒真/空 catch | 出现即未达标 |
 | **SIG-DONE** | `✅ 所有验证通过` | verify 汇总 | 全部信号绿 | goal achieved 的最终判定串 |
 | **SIG-DONE-CORE** | `✅ 核心 AC 全部通过，次要 AC-{ids} 转 ⚠️ 留 checkpoint` | verify 汇总 | 核心全绿+次要未绿 | 核心/次要分组时 goal achieved 的判定串 |
 
@@ -52,6 +56,12 @@
   - **P1 次要 AC**：失败转判断日志 ⚠️，不阻塞 goal。
   - 全部 P0 通过 + 任意 P1 失败 → emit `SIG-DONE-CORE`（goal achieved，次要留 checkpoint）。
   - 全部 AC 通过 → emit `SIG-DONE`。
+
+- **质量 sanity gate（脚本/report 存在时必须绿，不存在则跳过不阻塞）**：
+  `SIG-FIELDSYNC`、`SIG-ARCH`（已有）；**`SIG-COVERAGE`、`SIG-TEST-EFF`（新增）**。
+  覆盖率（JaCoCo）+ 测试有效性（反模式）是 AC-coverage 之后的「广度 + 深度」防线——
+  AC-coverage 管「测试存在」，覆盖率管「代码被跑到」，有效性管「断言有意义」。
+  无 mvn/JaCoCo 环境（report 不存在）时 SIG-COVERAGE 跳过；测试文件不存在时 SIG-TEST-EFF 跳过。
 
 ## 历史 drift 记录（本文件修正的不一致）
 

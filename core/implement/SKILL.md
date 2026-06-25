@@ -134,6 +134,7 @@ tags: [implement, 代码生成, 判断日志, goal-worker]
    - [ ] **AC-测试映射表的每一行都已生成对应测试**(grep `Test\.java$` / `caseObjs\.yaml$` 数量 = 映射表行数)
    - [ ] **业务代码每新增/修改一个公开方法,对应测试用例存在**(这是 verify-harness SIG-ACCOV 的核验对象——映射表里每条 AC 都必须 1:1 命中存在的测试,否则 goal 不达成)
    - [ ] 测试覆盖正常路径 + 至少 1 个异常路径
+   - [ ] **无空断言**:每个测试方法 ≥1 个有意义断言(禁 assertTrue(true)/assertEquals(x,x);异常断言类型+消息;见 test-standards §8, verify-test-effectiveness.mjs SIG-TEST-EFF 核验)
 4. **产出判断日志**(参见 `references/judgment-log-format.md` + `references/judgment-heuristics.md`)
 
 **为什么测试是硬步骤(不是可选)**:

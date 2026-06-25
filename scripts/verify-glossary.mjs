@@ -63,6 +63,10 @@ const EXPECTED = {
   SIG_ACLIINE: '— 通过',
   SIG_DONE: '✅ 所有验证通过',
   SIG_DONE_CORE: '✅ 核心 AC 全部通过，次要 AC',
+  SIG_COVERAGE: '覆盖率：行',
+  SIG_COVERAGE_FAIL: '未达阈值',
+  SIG_TEST_EFF: '测试有效性：无空断言',
+  SIG_TEST_EFF_FAIL: '测试有效性：',
 };
 
 // ── helpers ──────────────────────────────────────────────
@@ -119,6 +123,8 @@ function checkVerifySkill(src) {
   ok = check('emit SIG-ARCH', src.includes('架构合规：全部通过')) && ok;
   ok = check('emit SIG-DONE', src.includes('✅ 所有验证通过')) && ok;
   ok = check('emit SIG-DONE-CORE', src.includes('✅ 核心 AC 全部通过，次要 AC')) && ok;
+  ok = check('emit SIG-COVERAGE', src.includes('覆盖率：行')) && ok;
+  ok = check('emit SIG-TEST-EFF', src.includes('测试有效性：无空断言')) && ok;
   // 旧的 drifted 串必须已清除
   ok = check('旧 drift 串「字段同步检查通过」已清除', !src.includes('字段同步检查通过')) && ok;
   ok = check('旧 drift 串「架构合规检查通过」已清除', !src.includes('架构合规检查通过')) && ok;

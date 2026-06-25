@@ -109,3 +109,15 @@ Mock 清理在 `afterActsTest()` 中完成。
 - ACTS 测试通过 mvn test (TestNG suite xml) 执行
 - 覆盖率低于阈值构建失败
 - 新增 Facade 方法必须同步新增 ACTS 测试
+
+## 8. 测试有效性（防假测试）
+
+覆盖率（§1）只保证「代码被跑到」，不保证「测试能抓 bug」。以下约束确保测试**真实有效**（对应 `verify-test-effectiveness.mjs` SIG-TEST-EFF 核验）：
+
+- 每个测试方法 ≥1 个**有意义断言**（断业务状态/异常/返回值，非 `assertNotNull` 了事）。
+- **禁止恒真断言**：`assertTrue(true)`、`assertFalse(false)`、`assertEquals(x, x)`、`assertSame(a, a)`。
+- **异常测试必须断言异常类型/消息**（禁空 catch 吞异常）：用 `assertThrows(MycmBizException.class, ...)` + 断言 `ErrorCodeEnum`。
+- **禁无断言方法**：`@Test` 方法体必须有 `assert*/verify/expect/throw`（ACTS `@AutoFill` data-driven 例外，断言在 yaml Result section）。
+- **变异测试目标**（PIT）：mutation score ≥ 80%（按需 `mvn -Ppit`，见 pom profile；不进每次 verify）。
+
+反模式坏/好对照见 `patterns/test.md`「反模式：假测试」。

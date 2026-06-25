@@ -38,6 +38,10 @@
 		<mapstruct.version>1.6.3</mapstruct.version>
 		<lombok.version>1.18.30</lombok.version>
 		<lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
+		<jacoco.version>0.8.12</jacoco.version>
+		<pitest.version>1.15.10</pitest.version>
+		<!-- JaCoCo agent argLine: 默认空, jacoco:prepare-agent 注入 agent; surefire argLine 追加 ${jacocoArgLine} -->
+		<jacocoArgLine></jacocoArgLine>
 	</properties>
 
 	<dependencyManagement>
@@ -221,7 +225,7 @@
 					<excludes>
 						<exclude>**/Abstract*.java</exclude>
 					</excludes>
-					<argLine>--add-opens=java.base/*=ALL-UNNAMED</argLine>
+					<argLine>--add-opens=java.base/*=ALL-UNNAMED ${jacocoArgLine}</argLine>
 				</configuration>
 				<dependencies>
 					<dependency>
@@ -265,6 +269,44 @@
 					<appName>{{appName}}</appName>
 					<framework>sofaboot</framework>
 				</configuration>
+			</plugin>
+			<!-- JaCoCo 覆盖率: prepare-agent 注入 agent + report 生成 jacoco.csv + check 阈值(test-standards §1) -->
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<version>${jacoco.version}</version>
+				<executions>
+					<execution>
+						<id>prepare-agent</id>
+						<goals><goal>prepare-agent</goal></goals>
+						<configuration><propertyName>jacocoArgLine</propertyName></configuration>
+					</execution>
+					<execution>
+						<id>report</id>
+						<phase>verify</phase>
+						<goals><goal>report</goal></goals>
+					</execution>
+					<execution>
+						<id>check</id>
+						<phase>verify</phase>
+						<goals><goal>check</goal></goals>
+						<configuration>
+							<rules>
+								<rule>
+									<element>BUNDLE</element>
+									<limits>
+										<limit><counter>LINE</counter><value>COVEREDRATIO</value><minimum>0.80</minimum></limit>
+										<limit><counter>BRANCH</counter><value>COVEREDRATIO</value><minimum>0.70</minimum></limit>
+									</limits>
+								</rule>
+							</rules>
+							<excludes>
+								<exclude>**/model/**</exclude>
+								<exclude>**/*Enum*</exclude>
+							</excludes>
+						</configuration>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 	</build>
@@ -330,6 +372,33 @@
 					</snapshots>
 				</pluginRepository>
 			</pluginRepositories>
+		</profile>
+		<!-- PIT 变异测试(按需): mvn -Ppit test-compile org.pitest:pitest-maven:mutationCoverage。
+		     不进每次 verify(慢),夜间 CI / PR 关键模块跑。mutation score 阈值 80%。 -->
+		<profile>
+			<id>pit</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.pitest</groupId>
+						<artifactId>pitest-maven</artifactId>
+						<version>${pitest.version}</version>
+						<configuration>
+							<targetClasses>
+								<param>com.*.facade.**</param>
+								<param>com.*.application.**</param>
+								<param>com.*.domain.**</param>
+							</targetClasses>
+							<outputFormats>
+								<outputFormat>HTML</outputFormat>
+								<outputFormat>XML</outputFormat>
+							</outputFormats>
+							<mutationThreshold>80</mutationThreshold>
+							<timestampedReports>false</timestampedReports>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
 		</profile>
 	</profiles>
 

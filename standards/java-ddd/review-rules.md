@@ -73,6 +73,8 @@
 - [ ] caseObjs.yaml 包含完整 7 个 section
 - [ ] Domain / 工具类有 TestNG + Mockito 单元测试
 - [ ] Mock 在 afterActsTest() 中清理
+- [ ] 分支覆盖达标（JaCoCo BRANCH，见 test-standards §1；阈值 行≥80% 分支≥70%）
+- [ ] 无空断言/恒真断言/吞异常（见 test-standards §8）
 
 ## H. 代码质量
 
