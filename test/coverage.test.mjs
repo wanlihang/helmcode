@@ -25,6 +25,11 @@ describe('AC-001 pom jacoco plugin', () => {
     assert.match(pom, /<counter>BRANCH<\/counter><value>COVEREDRATIO<\/value><minimum>0\.70<\/minimum>/);
   });
   it('excludes 生成代码', () => assert.match(pom, /<excludes>/));
+  it('jacoco propertyName=argLine(非 jacocoArgLine)', () => {
+    assert.match(pom, /<propertyName>argLine<\/propertyName>/);
+    assert.ok(!/jacocoArgLine/.test(pom), '不应有 jacocoArgLine 残留');
+  });
+  it('surefire argLine 用 @{argLine}(延迟求值拾取 agent)', () => assert.match(pom, /@\{argLine\}/));
 });
 
 // ── AC-002: pom pitest profile ───────────────────────────
@@ -34,6 +39,18 @@ describe('AC-002 pom pitest profile', () => {
     assert.match(pom, /<id>pit<\/id>[\s\S]*pitest-maven/);
   });
   it('mutationThreshold 80', () => assert.match(pom, /<mutationThreshold>80<\/mutationThreshold>/));
+});
+
+// ── F005: app/test pom surefire @{argLine}(3 execution 拾取 jacoco agent) ──
+describe('F005 app/test pom 3 execution @{argLine}', () => {
+  const pom = readFileSync(join(ROOT, 'core/init-java-ddd/templates/app/test/pom.xml.tmpl'), 'utf-8');
+  const matches = pom.match(/@\{argLine\}/g) || [];
+  it('3 个 execution 都拾取 agent(@{argLine} ≥ 3 次)', () => {
+    assert.ok(matches.length >= 3, `@{argLine} 出现 ${matches.length} 次,应 ≥ 3(默认/test-arch-and-smoke/test-testng)`);
+  });
+  it('test-testng 保留 -Xmx(@{argLine} 后追加, AC-003)', () => {
+    assert.match(pom, /<argLine>@\{argLine\} -Xmx1024m/);
+  });
 });
 
 // ── AC-003: verify-coverage 解析 jacoco.csv ──────────────

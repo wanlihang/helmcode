@@ -40,8 +40,7 @@
 		<lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
 		<jacoco.version>0.8.12</jacoco.version>
 		<pitest.version>1.15.10</pitest.version>
-		<!-- JaCoCo agent argLine: 默认空, jacoco:prepare-agent 注入 agent; surefire argLine 追加 ${jacocoArgLine} -->
-		<jacocoArgLine></jacocoArgLine>
+		<!-- JaCoCo: propertyName=argLine + surefire @{argLine}(延迟求值拾取 agent),无需默认空属性 -->
 	</properties>
 
 	<dependencyManagement>
@@ -225,7 +224,7 @@
 					<excludes>
 						<exclude>**/Abstract*.java</exclude>
 					</excludes>
-					<argLine>--add-opens=java.base/*=ALL-UNNAMED ${jacocoArgLine}</argLine>
+					<argLine>--add-opens=java.base/*=ALL-UNNAMED @{argLine}</argLine>
 				</configuration>
 				<dependencies>
 					<dependency>
@@ -279,7 +278,7 @@
 					<execution>
 						<id>prepare-agent</id>
 						<goals><goal>prepare-agent</goal></goals>
-						<configuration><propertyName>jacocoArgLine</propertyName></configuration>
+						<configuration><propertyName>argLine</propertyName></configuration>
 					</execution>
 					<execution>
 						<id>report</id>
