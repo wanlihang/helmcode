@@ -119,6 +119,9 @@ export function contentChecksum(helmcodeHome) {
   } catch {
     // package.json 缺失/解析失败 → files 空聚合
   }
+  // npm 约定:package.json 总是随包发布(即使 files 未列),强制纳入 checksum。
+  // version/files 字段变更必须触发 drift,不能因 files 未列 package.json 而漏算。
+  if (!files.includes('package.json')) files = [...files, 'package.json'];
   const entries = [];
   for (const entry of files) {
     const full = join(helmcodeHome, entry);

@@ -131,6 +131,18 @@ describe('AC-003b contentChecksum', () => {
     assert.equal(before, after, 'test/ 与 .claude/ 应被排除,不影响 contentChecksum');
   });
 
+  it('includes package.json — version change triggers checksum change', () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'helmcode-pkg-'));
+    mkdirSync(join(tmp, 'core'));
+    writeFileSync(join(tmp, 'core', 'a.md'), 'A');
+    writeFileSync(join(tmp, 'package.json'), JSON.stringify({ version: '1.0.0', files: ['core'] }));
+    const before = contentChecksum(tmp);
+    // 改 package.json version → contentChecksum 必须变(npm 约定 package.json 总是发布)
+    writeFileSync(join(tmp, 'package.json'), JSON.stringify({ version: '2.0.0', files: ['core'] }));
+    const after = contentChecksum(tmp);
+    assert.notEqual(before, after, 'package.json version 变化必须触发 contentChecksum 变化');
+  });
+
   it('returns empty-content hash for missing home', () => {
     const h = contentChecksum(join(tmpdir(), `helmcode-missing-${process.pid}`));
     assert.equal(h, createHash('sha256').update('').digest('hex'));

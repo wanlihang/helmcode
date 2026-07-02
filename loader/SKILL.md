@@ -440,6 +440,7 @@ cp "$HELMCODE_HOME/commands/"*.md ".claude/commands/"
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v3.3.1 | 2026-07-02 | fix(api): `contentChecksum` 强制纳入 `package.json`（npm 约定总是发布，即使 files 未列）；否则 package.json 的 version/files 变化不触发 drift。加回归测试。 |
 | v3.3.0 | 2026-07-02 | api.mjs 新增 `contentChecksum(helmcodeHome)`：按 `package.json files` 字段算全量发布内容 checksum（覆盖 core/standards/scripts/commands/loader/bin + 根 mjs），排除非发布内容（.git/.claude/test/...）。用于 HelmFlow「全变更 drift 感知」（替代旧 standardsChecksum 只覆盖 standards 子集，漏检 core skill 等）。重构 checksum 抽 hashEntries/collectEntries 共享内部函数（算法不变，向后兼容）。 |
 | v3.2.0 | 2026-07-02 | 新增 prd-gen 技能（L1-PRD 生成器）：从行为契约+PD原始需求整合生成人读 PRD，与 sdd-gen 并列（clarify 后派生）。prd/sdd 模板 frontmatter 双加 `matrixCellId`（HelmFlow 协同，契约↔PRD↔SDD 三边一致）。java-ddd+minimal 两 preset 注册。 |
 | v3.1.0 | 2026-06-16 | install 默认从 GitHub 同步最新源 + reexec 加载新代码（新技能/修复装得到）；新增 api.mjs programmatic 入口（query/checksum/6 scanner）+ 契约 `matrixCellId` + matrix 目录（F001-helmflow-sync）。 |
