@@ -4,23 +4,24 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
-import { query, checksum } from '../api.mjs';
+import { query, checksum, contentChecksum } from '../api.mjs';
 import { install } from '../install.mjs';
 
 const HELMCODE_ROOT = fileURLToPath(new URL('..', import.meta.url));
 const pkg = JSON.parse(readFileSync(join(HELMCODE_ROOT, 'package.json'), 'utf-8'));
 
-// ── AC-001: api.mjs 导出 9 个符号 ──────────────────────────
+// ── AC-001: api.mjs 导出 10 个符号 ─────────────────────────
 describe('AC-001 api.mjs exports', () => {
-  it('exports exactly the 9 expected symbols', async () => {
+  it('exports exactly the 10 expected symbols', async () => {
     const api = await import('../api.mjs');
     const expected = [
       'checksum',
+      'contentChecksum',
       'generateProjectConventions',
       'query',
       'scanDOAnnotations',
@@ -94,6 +95,44 @@ describe('AC-003 checksum', () => {
 
   it('returns empty-content hash for missing dir', () => {
     const h = checksum(join(tmpdir(), `helmcode-missing-${process.pid}`));
+    assert.equal(h, createHash('sha256').update('').digest('hex'));
+  });
+});
+
+// ── AC-003b: contentChecksum 全量发布内容 checksum ─────────
+// 覆盖 package.json files 字段(core/standards/scripts/commands/loader/bin + 根 mjs),
+// 排除非发布内容(.git/.claude/test/...),用于 HelmFlow 全变更 drift 感知。
+describe('AC-003b contentChecksum', () => {
+  it('is a stable 64-hex across calls', () => {
+    const a = contentChecksum(HELMCODE_ROOT);
+    assert.equal(a, contentChecksum(HELMCODE_ROOT));
+    assert.match(a, /^[0-9a-f]{64}$/);
+  });
+
+  it('covers more than checksum(standards/{preset}) — 全量 vs 子集', () => {
+    assert.notEqual(
+      contentChecksum(HELMCODE_ROOT),
+      checksum(join(HELMCODE_ROOT, 'standards', 'java-ddd')),
+    );
+  });
+
+  it('excludes non-files content (test/ & .claude/ do not affect checksum)', () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'helmcode-cc-'));
+    mkdirSync(join(tmp, 'core'));
+    writeFileSync(join(tmp, 'core', 'a.md'), 'A');
+    writeFileSync(join(tmp, 'package.json'), JSON.stringify({ files: ['core'] }));
+    const before = contentChecksum(tmp);
+    // 加非 files 内容(应被排除):test/ 目录 + .claude/ 目录
+    mkdirSync(join(tmp, 'test'));
+    writeFileSync(join(tmp, 'test', 'x.md'), 'X');
+    mkdirSync(join(tmp, '.claude'));
+    writeFileSync(join(tmp, '.claude', 'y.md'), 'Y');
+    const after = contentChecksum(tmp);
+    assert.equal(before, after, 'test/ 与 .claude/ 应被排除,不影响 contentChecksum');
+  });
+
+  it('returns empty-content hash for missing home', () => {
+    const h = contentChecksum(join(tmpdir(), `helmcode-missing-${process.pid}`));
     assert.equal(h, createHash('sha256').update('').digest('hex'));
   });
 });

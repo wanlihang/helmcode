@@ -440,6 +440,7 @@ cp "$HELMCODE_HOME/commands/"*.md ".claude/commands/"
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v3.3.0 | 2026-07-02 | api.mjs 新增 `contentChecksum(helmcodeHome)`：按 `package.json files` 字段算全量发布内容 checksum（覆盖 core/standards/scripts/commands/loader/bin + 根 mjs），排除非发布内容（.git/.claude/test/...）。用于 HelmFlow「全变更 drift 感知」（替代旧 standardsChecksum 只覆盖 standards 子集，漏检 core skill 等）。重构 checksum 抽 hashEntries/collectEntries 共享内部函数（算法不变，向后兼容）。 |
 | v3.2.0 | 2026-07-02 | 新增 prd-gen 技能（L1-PRD 生成器）：从行为契约+PD原始需求整合生成人读 PRD，与 sdd-gen 并列（clarify 后派生）。prd/sdd 模板 frontmatter 双加 `matrixCellId`（HelmFlow 协同，契约↔PRD↔SDD 三边一致）。java-ddd+minimal 两 preset 注册。 |
 | v3.1.0 | 2026-06-16 | install 默认从 GitHub 同步最新源 + reexec 加载新代码（新技能/修复装得到）；新增 api.mjs programmatic 入口（query/checksum/6 scanner）+ 契约 `matrixCellId` + matrix 目录（F001-helmflow-sync）。 |
 | v3.0.0 | 2026-06-15 | goal 机制升级：信号单一事实源（signal-glossary.md）+ 确定性 AC→goal 编译器（compile-goal.mjs）+ success predicate（verify-harness SIG-ACCOV）+ 三方对账（verify-glossary.mjs）。契约 AC 加优先级 P0/P1、验证方式 4 枚举、AC-测试映射表。**Breaking**：旧契约需补优先级字段才能被 compile-goal 解析。 |
