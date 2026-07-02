@@ -37,7 +37,7 @@ HelmCode 是什么：
 - 利用 Claude Code 的 /goal 机制驱动自主执行闭环
 - 行为契约的验收条件 = /goal 的完成条件
 - 按项目安装：skills + standards + templates + 目录结构
-- behavior-driven：行为契约替代 L1-L4 文档流水线
+- behavior-driven：行为契约是 `/goal` 的唯一机器驱动源（替代 L1-L4 瀑布流水线作为驱动）；PRD(L1)/SDD(L2) 是从契约派生的人读交付物，不参与机器判断
 
 HelmCode 不是什么：
 - 不是全局工具——每个项目独立安装
@@ -61,6 +61,7 @@ HelmCode 不是什么：
 |-------|------|---------|------------|
 | dev-flow | 主编排器（clarify → /goal → checkpoint） | SKILL.md + references/（goal 条件构建器） | 全部 |
 | clarify | 需求拆解，产出行为契约 | SKILL.md + references/（模板、澄清维度） | 全部 |
+| prd-gen | 产品需求文档（L1-PRD）生成器：从契约+PD原始需求整合人读 PRD | SKILL.md + references/（PRD 模板） | 全部 |
 | sdd-gen | 系分设计文档（L2-SDD）生成器：从契约/需求/代码生成 DDD 系分 | SKILL.md + references/（系分模板、PlantUML 规范） | java-ddd |
 | implement | goal loop 内的代码生成 worker | SKILL.md + references/（判断规范、上下文规则） | java-ddd |
 | verify | goal loop 内的验证动作集 | SKILL.md | java-ddd |
@@ -91,7 +92,7 @@ HelmCode 不是什么：
 
 完整 Java Spring Boot DDD 开发流程。
 
-Skills: dev-flow, clarify, sdd-gen, implement, verify, analyze, init-java-ddd
+Skills: dev-flow, clarify, prd-gen, sdd-gen, implement, verify, analyze, init-java-ddd
 Standards: standards.md, review-rules.md, test-standards.md, patterns/
 项目约定扫描: DO 注解、异常类、Facade 模式、MapStruct、持久层框架
 
@@ -99,7 +100,7 @@ Standards: standards.md, review-rules.md, test-standards.md, patterns/
 
 仅核心开发流程，不安装技术栈标准。
 
-Skills: dev-flow, clarify
+Skills: dev-flow, clarify, prd-gen
 Standards: 无
 
 ---
@@ -123,6 +124,11 @@ Standards: 无
 │   │   │       ├── contract-template.md
 │   │   │       ├── brief-template.md
 │   │   │       └── clarification-dimensions.md
+│   │   ├── prd-gen/                   # 全部 preset
+│   │   │   ├── SKILL.md
+│   │   │   └── references/
+│   │   │       ├── prd-template.md
+│   │   │       └── plantuml-style.md
 │   │   ├── sdd-gen/                  # 仅 java-ddd preset
 │   │   │   ├── SKILL.md
 │   │   │   └── references/
@@ -172,7 +178,9 @@ Standards: 无
 │   ├── contracts/
 │   │   └── registry.md                # Feature 注册表
 │   ├── briefs/                        # 项目简报（不参与代码生成）
-│   └── judgment-logs/                 # 判断日志
+│   ├── judgment-logs/                 # 判断日志
+│   ├── prd/                           # 需求文档（/prd-gen 生成，人读交付物）
+│   └── sdd/                           # 系分文档（/sdd-gen 生成）
 ```
 
 ---
@@ -252,9 +260,9 @@ Phase 6: 安装全局 Loader（可选）
 ```bash
 # 根据 preset 确定要安装的 skills
 if [ "$PRESET" = "java-ddd" ]; then
-  SKILLS=("dev-flow" "clarify" "implement" "verify" "analyze" "init-java-ddd")
+  SKILLS=("dev-flow" "clarify" "prd-gen" "sdd-gen" "implement" "verify" "analyze" "init-java-ddd")
 elif [ "$PRESET" = "minimal" ]; then
-  SKILLS=("dev-flow" "clarify")
+  SKILLS=("dev-flow" "clarify" "prd-gen")
 fi
 
 for skill in "${SKILLS[@]}"; do
@@ -308,6 +316,8 @@ cp "$HELMCODE_HOME/commands/"*.md ".claude/commands/"
 # HelmCode 工作流
 主流程: /dev-flow (clarify → /goal → checkpoint)
 单独使用: /clarify, /implement, /verify, /analyze, /checkpoint
+需求文档: /prd-gen（从行为契约+PD原始需求整合生成 L1-PRD，clarify 之后、与 /sdd-gen 并列）
+系分文档: /sdd-gen（从需求/契约/PRD/代码生成 L2-SDD，clarify 之后、/goal 之前）
 
 ## 编码标准
 - 编码标准: .claude/standards/standards.md
@@ -321,6 +331,8 @@ cp "$HELMCODE_HOME/commands/"*.md ".claude/commands/"
 - 项目简报: .claude/briefs/ (不参与代码生成)
 - 判断日志: .claude/judgment-logs/
 - Feature 注册: .claude/contracts/registry.md
+- 需求文档: .claude/prd/（由 /prd-gen 生成，Feature 编号与行为契约绑定）
+- 系分文档: .claude/sdd/（由 /sdd-gen 生成，Feature 编号与行为契约绑定）
 ```
 
 ---
@@ -375,12 +387,12 @@ cp "$HELMCODE_HOME/commands/"*.md ".claude/commands/"
 
 ## 磁盘占用
 
-- 6 个 skills + references + templates：约 120KB（java-ddd preset）
-- 2 个 skills + references：约 30KB（minimal preset）
+- 8 个 skills + references + templates：约 140KB（java-ddd preset）
+- 3 个 skills + references：约 35KB（minimal preset）
 - standards + patterns：约 50KB（java-ddd preset）
 - scripts + commands：约 10KB
 - 项目目录和 registry：约 1KB
-- **总计约 180KB（java-ddd）/ 30KB（minimal）**
+- **总计约 200KB（java-ddd）/ 35KB（minimal）**
 
 ---
 

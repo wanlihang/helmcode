@@ -1,9 +1,10 @@
 ---
 spec_id: SDD-{F-ID}          # 与行为契约绑定，如 SDD-F002
-spec_level: L2               # 功能规范层（HelmCode 契约→系分→代码，无 L1/L3 独立 spec）
+spec_level: L2               # 功能规范层（HelmCode 契约→PRD/SDD→代码）
 spec_type: SDD
 feature_id: F{NNN}-{short-name}   # 必须与契约文件名完全一致
 contract: F{NNN}-{short-name}     # 绑定的行为契约（同编号）
+matrixCellId: {D-XX__cell名}       # HelmFlow 编排下填（从契约继承，契约↔PRD↔SDD 三边一致），独立使用留空
 version: 1.0
 status: Draft
 created_date: YYYY-MM-DD
@@ -12,9 +13,10 @@ author: {作者}
 reviewer: pending
 owner: {技术负责人}
 
-# 向上追溯（HelmCode 里追溯到行为契约，即 contract 字段；若有 PRD 一并列）
+# 向上追溯（HelmCode 里追溯到行为契约，即 contract 字段；若已由 /prd-gen 生成 PRD，一并列）
 trace_from:
   - F{NNN}-{short-name}
+  - PRD-{F-ID}
 
 # 向下追溯（HelmCode 无独立 L3 spec；填落地的 /goal 里程碑或核心实现类，无则留空数组）
 trace_to: []
@@ -83,6 +85,7 @@ related_requirements:
 ### 1.1.4 相关文档
 
 - 行为契约：[{F-ID}-{short-name}](../contracts/{F-ID}-{short-name}.md)（同编号绑定）
+- 需求文档：[{F-ID}-{short-name}](../prd/{F-ID}-{short-name}.md)（L1-PRD，若已由 /prd-gen 生成）
 - 相关系分：[{其他 F-ID}-{name}](./{其他 F-ID}-{name}.md)
 
 ---

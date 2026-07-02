@@ -181,6 +181,11 @@ Phase 1: clarify 产出:
 人审查后:
   └── .claude/contracts/{F-ID}-{short-name}.md  (状态: draft → approved)
 
+可选派生（契约 approved 后，人读交付物，不参与 goal 机器判断）:
+  ├── .claude/prd/{F-ID}-{short-name}.md        (PRD，/prd-gen 从契约+原始需求整合，给业务/测试)
+  └── .claude/sdd/{F-ID}-{short-name}.md        (系分，/sdd-gen 从契约生成，给开发)
+  ※ 三者与契约同 Feature 编号绑定；HelmFlow 编排下 matrixCellId 三边一致
+
 Phase 2: /goal 循环内产出:
   ├── 生成的代码文件
   ├── .claude/judgment-logs/{F-ID}-{short-name}.md  (判断日志)

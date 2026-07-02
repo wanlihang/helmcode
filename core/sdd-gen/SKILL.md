@@ -29,6 +29,7 @@ tags: [sdd, 系分, 设计文档, spec, L2, ddd]
 
 1. **识别输入来源**（按优先级）：
    - 行为契约（`.claude/contracts/F*.md`，最推荐——同编号绑定直接复用 Feature ID）
+   - 需求文档（`.claude/prd/F*.md`，L1-PRD——业务背景、用户角色、验收标准的权威人读来源，与契约同编号绑定，由 `/prd-gen` 生成）
    - 项目简报（`.claude/briefs/`，人写的需求背景）
    - 现有代码（源码目录，逆向生成）
    - 用户口头描述
@@ -170,15 +171,28 @@ KEY `idx_gmt_create` (`gmt_create`)
 
 /sdd-gen 可在以下节点触发：
   ├── clarify 之后：从契约生成系分（推荐）
+  ├── /prd-gen 之后/之前：PRD 与 SDD 互为 trace（双向追溯）
   ├── /goal 之前：补充技术设计后再编码
   └── 独立使用：对已有需求/代码生成系分文档
 ```
 
 **推荐流程**：
-1. `/clarify` → 产出行为契约
-2. `/sdd-gen --feature F001-xxx --from contract` → 产出系分文档
-3. `/goal` → 基于契约+系分驱动实现
-4. `checkpoint` → 审查设计决策
+1. `/clarify` → 产出行为契约（机器契约）
+2. `/prd-gen --feature F001-xxx --from contract` → 产出 PRD（L1，给业务/测试）
+3. `/sdd-gen --feature F001-xxx --from contract` → 产出系分（L2，给开发）
+4. `/goal` → 基于契约驱动实现（PRD/SDD 是参考，契约是唯一驱动源）
+5. `checkpoint` → 审查设计决策
+
+> **隔离约定**：行为契约是 `/goal` 的**唯一**驱动源。PRD 和 SDD 是人读交付物，**不参与** goal 循环的机器判断（implement/verify 只读契约 + standards）。
+
+## HelmFlow 协同（matrixCellId 机制）
+
+若在 HelmFlow 编排下使用，系分的 frontmatter `matrixCellId` 必须与行为契约**完全一致**：
+
+- `matrixCellId` 格式：`D-XX__cell名`（业务坐标，HelmFlow 控制平面据此精确匹配 cell）
+- **填写规则**：从绑定的行为契约继承 `matrixCellId`（契约 ↔ PRD ↔ SDD 三边一致）
+- 独立使用（非 HelmFlow 编排）：留空
+- HelmFlow 通过扫描 `.claude/contracts/`、`.claude/prd/`、`.claude/sdd/` 三处同 `matrixCellId` 的文档，建立 cell 级别的契约→需求→设计闭环
 
 ## 模板使用纪律（最重要）
 

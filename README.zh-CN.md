@@ -203,6 +203,7 @@ HelmCode 自动:
 | --- | --- | --- |
 | `/dev-flow {需求}` | **首选** | 完整主流程:clarify → /goal → checkpoint |
 | `/clarify` | 单独使用 | 仅需求澄清,产出行为契约 |
+| `/prd-gen` | `/clarify` 后、与 `/sdd-gen` 并列 | 从行为契约+PD原始需求整合生成标准化产品需求文档(L1-PRD,给业务/测试),输出按 Feature 编号与行为契约绑定(`.claude/prd/F00X-*.md`) |
 | `/sdd-gen` | `/clarify` 后、`/goal` 前 | 从契约/需求/代码生成标准化系分设计文档(L2-SDD)，输出按 Feature 编号与行为契约绑定(`.claude/sdd/F00X-*.md`) |
 | `/implement` | `/goal` 内自动调 | 代码生成 worker(单独跑会缺 verify 闭环) |
 | `/verify` | `/goal` 内自动调 / 单独验证 | 跑 4 项验证 |
@@ -291,6 +292,8 @@ your-project/
 │   ├── skills/                          # Slash 命令技能
 │   │   ├── dev-flow/SKILL.md
 │   │   ├── clarify/SKILL.md + references/
+│   │   ├── prd-gen/SKILL.md + references/   # L1-PRD 生成器
+│   │   ├── sdd-gen/SKILL.md + references/   # L2-SDD 生成器
 │   │   ├── implement/SKILL.md + references/
 │   │   ├── verify/SKILL.md
 │   │   ├── analyze/SKILL.md

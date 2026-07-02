@@ -30,6 +30,7 @@ tags: [clarify, 需求分析, 行为契约, 约束定义]
 | 项目简报模板 | `references/brief-template.md`（skill 目录内） | 主会话 | 1KB |
 | 澄清维度 | `references/clarification-dimensions.md`（skill 目录内） | 主会话 | 2KB |
 | 编码标准 | `.claude/standards/standards.md`（项目根目录） | 主会话 | 3-5KB |
+| 项目约定 | `.claude/standards/project-conventions.md`（项目根目录,若存在） | 主会话 | 2-4KB |
 | 审查规则 | `.claude/standards/review-rules.md`（项目根目录） | 按需 | 5KB |
 
 **路径约定**：
@@ -162,6 +163,14 @@ tags: [clarify, 需求分析, 行为契约, 约束定义]
 - 行为契约至少包含：问题定义、至少1条业务规则（BR-xxx）、验收条件
 - 验收条件满足结构化约束：验证方式为 4 类枚举之一、每条标 P0/P1 优先级、
   所有「测试」类 AC 在「AC-测试映射」节有登记（缺映射表的契约不算 approved）
+
+**后续派生（契约 approved 后可选）**：
+
+行为契约是机器可验证的精确输入，面向 `/goal`。若需要面向人的交付物，可用以下技能从契约派生（与契约同 Feature 编号绑定）：
+
+- `/prd-gen --feature {F-ID}` — 把契约 + PD 原始需求整合为正式 PRD（L1 业务规范，给业务/产品/测试）
+- `/sdd-gen --feature {F-ID}` — 从契约生成系分文档（L2 功能规范，给开发/架构）
+- HelmFlow 编排下，PRD/SDD 的 `matrixCellId` 从契约继承，三边一致
 
 ## 参数
 

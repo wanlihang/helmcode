@@ -224,11 +224,11 @@ function phaseHeader(n, title) {
 
 export const PRESETS = {
   'java-ddd': {
-    skills: ['dev-flow', 'clarify', 'sdd-gen', 'implement', 'verify', 'analyze', 'init-java-ddd'],
+    skills: ['dev-flow', 'clarify', 'prd-gen', 'sdd-gen', 'implement', 'verify', 'analyze', 'init-java-ddd'],
     standardsDir: 'java-ddd',
   },
   minimal: {
-    skills: ['dev-flow', 'clarify'],
+    skills: ['dev-flow', 'clarify', 'prd-gen'],
     standardsDir: null,
   },
 };
@@ -388,6 +388,7 @@ function configureClaudeMd(projectDir, preset) {
 
 主流程: /dev-flow (clarify → /goal → checkpoint)
 单独使用: /clarify, /implement, /verify, /analyze, /checkpoint
+需求文档: /prd-gen（从行为契约+PD原始需求整合生成标准化产品需求文档 L1-PRD，clarify 之后、与 /sdd-gen 并列）
 系分文档: /sdd-gen（从需求/契约/PRD/代码生成标准化系分设计文档 L2-SDD，建议 clarify 之后、/goal 之前使用）
 
 ## 编码标准
@@ -402,6 +403,7 @@ function configureClaudeMd(projectDir, preset) {
 - 项目简报: .claude/briefs/ (不参与代码生成)
 - 判断日志: .claude/judgment-logs/
 - Feature 注册: .claude/contracts/registry.md
+- 需求文档: .claude/prd/（由 /prd-gen 生成，Feature 编号与行为契约绑定，人读交付物）
 - 系分文档: .claude/sdd/（由 /sdd-gen 生成，Feature 编号与行为契约绑定）
 `;
 
@@ -460,7 +462,8 @@ function detectSourceRoot(projectDir) {
   const candidates = ['app', 'src/main/java', 'src', '.'];
   for (const c of candidates) {
     const dir = join(projectDir, c);
-    if (existsSync(dir) && findFilesDeep(dir, '.java', 2).length > 0) return dir;
+    // maxDepth=8 覆盖 DDD 多模块布局 app/<module>/src/main/java/<pkg>/…(原 2 层扫不到)
+    if (existsSync(dir) && findFilesDeep(dir, '.java', 8).length > 0) return dir;
   }
   return null;
 }
