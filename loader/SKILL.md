@@ -440,6 +440,8 @@ cp "$HELMCODE_HOME/commands/"*.md ".claude/commands/"
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v3.2.0 | 2026-07-02 | 新增 prd-gen 技能（L1-PRD 生成器）：从行为契约+PD原始需求整合生成人读 PRD，与 sdd-gen 并列（clarify 后派生）。prd/sdd 模板 frontmatter 双加 `matrixCellId`（HelmFlow 协同，契约↔PRD↔SDD 三边一致）。java-ddd+minimal 两 preset 注册。 |
+| v3.1.0 | 2026-06-16 | install 默认从 GitHub 同步最新源 + reexec 加载新代码（新技能/修复装得到）；新增 api.mjs programmatic 入口（query/checksum/6 scanner）+ 契约 `matrixCellId` + matrix 目录（F001-helmflow-sync）。 |
 | v3.0.0 | 2026-06-15 | goal 机制升级：信号单一事实源（signal-glossary.md）+ 确定性 AC→goal 编译器（compile-goal.mjs）+ success predicate（verify-harness SIG-ACCOV）+ 三方对账（verify-glossary.mjs）。契约 AC 加优先级 P0/P1、验证方式 4 枚举、AC-测试映射表。**Breaking**：旧契约需补优先级字段才能被 compile-goal 解析。 |
 | v2.1.0 | 2026-06-02 | 新增：`update` 自更新（自动从 GitHub/npm 拉取最新版本）、`version` 命令、`--no-self-update` 选项、版本追踪（`.claude/.helmcode-version`）、`status` 增强（版本+更新检查）、`list` 显示版本 |
 | v2.0.3 | 2026-06-01 | 修复：install.sh 与 install.mjs 对齐，补充 init-java-ddd、scripts/commands 安装、项目约定扫描、status/update/list 子命令、--global-loader 选项 |
